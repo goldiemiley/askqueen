@@ -89,6 +89,36 @@ Content lives in `src/data/`:
 - Real-phone checks: [`docs/real-device-checklist.md`](docs/real-device-checklist.md). Browser checks:
   `e2e/share_checks.py`.
 
+## Music Library (editing the songs)
+
+All songs live in **`src/data/songs.json`**, the single source of truth (one song per line). The website,
+the tests and the editor all read it, and the build fails if it has errors. Edit it with the **AskQueen Music
+Library**, a local-only editor that runs on your computer and is not part of the public site:
+
+1. **Open the editor:** `npm run library`, then open http://localhost:4321.
+2. **Add or edit songs:** Add song (title, artist, Spotify link, genres, themes, energy) or Edit on any row.
+   Paste the Spotify link from Share → Copy Song Link; the editor extracts the track ID, shows the player and
+   can check the title with Spotify. Import JSON adds many at once (simple format:
+   `[{"title": "Hard Times", "artist": "Paramore", "genre": "Rock", "theme": "Burnout"}]`).
+3. **Validate:** the overview shows totals, the theme × genre grid and every check as you go. Errors (missing
+   fields, duplicates, a theme with no songs) block saving; warnings (thin coverage, no Spotify ID) are advice.
+4. **Save:** Save to catalogue writes `songs.json`. Export JSON downloads a backup.
+5. **Commit and push:** `git add src/data/songs.json && git commit -m "Update songs" && git push`.
+6. **GitHub Actions redeploys** AskQueen once all checks pass (pushes to `main` only).
+
+**Removing songs:** use **Retire** (one song, or select several). Retired songs stop being recommended but stay
+in the file, so old share links that used them keep working. **Delete permanently** removes the song; the
+editor warns first, because old share links using it will show "This reading has vanished". Song IDs never
+change once published. Import with "Replace the library" retires everything not in the file (never deletes).
+
+Each Daily roast picks a song from its theme, then narrows to the reader's genres, so aim for 3+ songs in
+every theme × genre square and 14+ per theme. Adding or retiring songs changes which song people get from then
+on; shared links keep their original song.
+
+**Security:** the editor listens only on your computer (127.0.0.1), refuses requests from other websites, and
+has no login or tokens because nothing about it is published. Editing songs from the public website would need
+a real backend with sign-in, which isn't built.
+
 ## Run it locally
 
 Requires Node.js 20.9 or newer (tested on Node 22).

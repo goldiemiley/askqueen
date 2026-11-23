@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { ADVICE, AVOID, LUCKY } from "@/data/daily-extras";
 import { allRoasts, roastsForSign } from "@/data/roasts";
 import { SONGS, spotifyEmbedUrl, spotifySearchUrl } from "@/data/songs";
-import { SPOTIFY_TRACK_IDS } from "@/data/spotify-tracks";
 import { THEMES } from "@/data/themes";
 import { addDays, dayNumber } from "@/features/daily/date";
 import {
@@ -96,19 +95,13 @@ describe("music dataset", () => {
   it("gives every song a unique, well-formed Spotify track ID", () => {
     for (const s of SONGS) expect(s.spotifyTrackId, s.id).toMatch(/^[0-9A-Za-z]{22}$/);
     expect(new Set(SONGS.map((s) => s.spotifyTrackId)).size).toBe(SONGS.length);
-    expect(Object.keys(SPOTIFY_TRACK_IDS).sort()).toEqual(SONGS.map((s) => s.id).sort());
     expect(spotifyEmbedUrl("3TGRqZ0a2l1LRblBkJoaDx")).toBe(
       "https://open.spotify.com/embed/track/3TGRqZ0a2l1LRblBkJoaDx?utm_source=generator",
     );
   });
 
-  it("has at least 3 songs for every theme and genre pair", () => {
-    for (const theme of ROAST_THEMES) {
-      for (const genre of MUSIC_GENRES) {
-        const n = SONGS.filter((s) => s.themes.includes(theme) && s.genres.includes(genre)).length;
-        expect(n, `${theme} × ${genre}`).toBeGreaterThanOrEqual(3);
-      }
-    }
+  it("has at least one active song for every theme, so every reading gets a song", () => {
+    for (const theme of ROAST_THEMES) expect(SONGS.some((s) => s.themes.includes(theme)), theme).toBe(true);
   });
 });
 

@@ -1,7 +1,7 @@
 {
   "name": "askqueen",
   "version": "1.0.0",
-  "description": "AskQueen — the universe has spoken, babe.",
+  "description": "AskQueen \u2014 the universe has spoken, babe.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm run lint && npm test && npm run build:pages"
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build:pages",
+    "library": "tsx scripts/music-library/server.ts"
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -29,6 +30,7 @@
     "eslint-config-next": "^16.4.6",
     "postcss": "^8.5.33",
     "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.1.1"
   },
