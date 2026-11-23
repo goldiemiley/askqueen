@@ -98,8 +98,12 @@ Library**, a local-only editor that runs on your computer and is not part of the
 1. **Open the editor:** `npm run library`, then open http://localhost:4321.
 2. **Add or edit songs:** Add song (title, artist, Spotify link, genres, themes, energy) or Edit on any row.
    Paste the Spotify link from Share → Copy Song Link; the editor extracts the track ID, shows the player and
-   can check the title with Spotify. Import JSON adds many at once (simple format:
-   `[{"title": "Hard Times", "artist": "Paramore", "genre": "Rock", "theme": "Burnout"}]`).
+   can check the title with Spotify. **Bulk add** takes many songs at once: paste one per line
+   (`Hard Times - Paramore - Rock - Burnout - high`, commas or tabs work too, a Spotify link anywhere in the
+   line is picked up) or rows copied from a spreadsheet. Set a default genre, theme and energy for rows that
+   don't say, fix any row in the review table, and add the ready ones; songs already in the library and
+   repeats are skipped. Import JSON also works (`[{"title": "Hard Times", "artist": "Paramore", "genre":
+   "Rock", "theme": "Burnout"}]`).
 3. **Validate:** the overview shows totals, the theme × genre grid and every check as you go. Errors (missing
    fields, duplicates, a theme with no songs) block saving; warnings (thin coverage, no Spotify ID) are advice.
 4. **Save:** Save to catalogue writes `songs.json`. Export JSON downloads a backup.

@@ -117,6 +117,19 @@
   .callout { background: var(--blush-soft); border-radius: 12px; padding: 10px 14px; font-size: 14px; margin-bottom: 12px; }
   .callout.err { background: #f7d7de; color: var(--burgundy); font-weight: 600; }
   .callout ul { margin: 6px 0 0; padding-left: 18px; }
+  dialog.wide { width: min(1180px, calc(100vw - 24px)); }
+  .defaults { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+  @media (max-width: 860px) { .defaults { grid-template-columns: 1fr; } }
+  .defaults .checks label { padding: 4px 10px; font-size: 13px; }
+  table.review { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.review th { text-align: left; font-size: 12px; color: var(--muted); padding: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.review td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.review input[type=text], table.review select { width: 100%; min-height: 34px; border: 1px solid rgba(48,32,51,.25); border-radius: 8px; padding: 4px 8px; background: #fff; }
+  table.review input[aria-invalid=true] { border-color: var(--burgundy); background: #fdf1f4; }
+  table.review tr.skip td { opacity: .55; }
+  .review-wrap { max-height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+  .rowmsg { font-size: 12px; font-weight: 600; margin-top: 3px; }
+  .rowmsg.err { color: var(--burgundy); } .rowmsg.ok { color: #3c6b3f; } .rowmsg.warn { color: #8a6116; }
   #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--plum); color: var(--cream); padding: 10px 18px; border-radius: 999px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
   #toast.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
@@ -147,7 +160,7 @@
   <section class="panel" aria-labelledby="catalogueH">
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
       <h2 id="catalogueH">Catalogue</h2>
-      <button class="btn primary" id="addBtn" type="button">Add song</button>
+      <div class="row"><button class="btn ghost" id="bulkBtn" type="button">Bulk add</button><button class="btn primary" id="addBtn" type="button">Add song</button></div>
     </div>
     <div class="toolbar" role="search">
       <div class="field search"><label for="q">Search title or artist</label><input id="q" type="search" autocomplete="off" /></div>
@@ -214,6 +227,35 @@
       <div class="r"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="submit" id="songSave">Add to library</button></div>
     </div>
   </form>
+</dialog>
+
+<dialog id="bulkDlg" class="wide" aria-labelledby="bulkDlgH">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="bulkDlgH">Bulk add songs</h2><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div class="form-field">
+      <label for="bulkText">Paste your songs, one per line</label>
+      <textarea id="bulkText" rows="7" placeholder="Good Luck, Babe! - Chappell Roan&#10;Hard Times - Paramore - Rock - Burnout - high&#10;Espresso, Sabrina Carpenter, Pop, Confidence, high, https://open.spotify.com/track/…"></textarea>
+      <span class="hint">Each line: <b>Title - Artist</b>, optionally followed by genre, theme, energy and a Spotify link (separated by dashes, commas or tabs). Rows copied from a spreadsheet work too; a header row with Title and Artist is recognised. Several genres or themes: separate them with “/”.</span>
+      <div class="row" style="margin-top:6px"><label for="bulkOrder" class="hint" style="font-weight:600">Lines are written as</label>
+        <select id="bulkOrder" style="min-height:34px;border:1px solid var(--line);border-radius:8px;padding:0 8px"><option value="ta">Title, then artist</option><option value="at">Artist, then title</option></select></div>
+    </div>
+    <div class="defaults" role="group" aria-label="Defaults for rows that don't say">
+      <fieldset style="border:0;padding:0;margin:0"><legend class="lbl" style="font-weight:600;font-size:14px">Genre for rows without one</legend><div class="checks" id="bulkGenre"></div></fieldset>
+      <fieldset style="border:0;padding:0;margin:0"><legend class="lbl" style="font-weight:600;font-size:14px">Theme for rows without one</legend><div class="checks" id="bulkTheme"></div></fieldset>
+      <fieldset style="border:0;padding:0;margin:0"><legend class="lbl" style="font-weight:600;font-size:14px">Energy for rows without one</legend><div class="checks" id="bulkEnergy"></div></fieldset>
+    </div>
+    <p id="bulkSummary" class="hint" role="status" style="font-weight:600;color:var(--plum)"></p>
+    <div class="review-wrap" id="bulkReviewWrap" hidden>
+      <table class="review">
+        <caption class="sr">Songs to add. Edit any cell before adding.</caption>
+        <thead><tr><th><span class="sr">Add this row</span></th><th>Song</th><th>Artist</th><th>Genres</th><th>Themes</th><th>Energy</th><th>Spotify link or ID</th></tr></thead>
+        <tbody id="bulkRows"></tbody>
+      </table>
+    </div>
+    <datalist id="genreList"></datalist><datalist id="themeList"></datalist>
+    <div class="dlg-foot"><span class="hint">Genres and themes: type names separated by “/”, e.g. Pop / R&amp;B.</span>
+      <div class="r"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="bulkApply" disabled>Add songs</button></div></div>
+  </div>
 </dialog>
 
 <dialog id="importDlg" aria-labelledby="importDlgH">
@@ -607,6 +649,172 @@ $("#importApply").onclick = () => { if (!state.importSongs) return; state.songs 
 document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
 document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 window.addEventListener("beforeunload", (e) => { if (dirty()) { e.preventDefault(); e.returnValue = ""; } });
+
+// ---------- Bulk add ----------
+const bulk = { rows: [] };
+const SP_IN_TEXT = /(https?:\/\/(?:open|play)\.spotify\.com\/[^\s,]+|spotify:track:[0-9A-Za-z]{22})/;
+function splitCsv(line, sep) {
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+    else if (c === '"' && !cur.trim()) q = true;
+    else if (c === sep) { out.push(cur); cur = ""; } else cur += c;
+  }
+  out.push(cur); return out.map((x) => x.trim());
+}
+const DASH = /\s+[-–—]\s+/;
+function bulkParse(text) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const sep = lines.some((l) => l.includes("\t")) ? "\t" : null;
+  let header = null;
+  const first = (sep ? lines[0].split("\t") : splitCsv(lines[0], ",")).map((h) => h.trim().toLowerCase());
+  if (first.includes("title") && first.includes("artist")) { header = first; lines.shift(); }
+  const order = $("#bulkOrder").value;
+  return lines.map((line, n) => {
+    let spotify = "";
+    const m = SP_IN_TEXT.exec(line);
+    if (m) { spotify = m[1]; line = (line.slice(0, m.index) + line.slice(m.index + m[1].length)).replace(/[\s,\t]+$/, "").replace(/\s[-–—]\s*$/, ""); }
+    let parts;
+    if (sep) parts = line.split("\t").map((x) => x.trim());
+    else if (header) parts = splitCsv(line, ",");
+    else if (DASH.test(line)) parts = line.split(DASH).map((x) => x.trim());
+    else parts = splitCsv(line, ",");
+    parts = parts.map((x) => x.trim());
+    const get = (name, idx) => (header ? (header.indexOf(name) >= 0 ? parts[header.indexOf(name)] : "") : parts[idx]) || "";
+    let title = get("title", 0), artist = get("artist", 1);
+    if (!header && order === "at") [title, artist] = [artist, title];
+    const genreRaw = header ? get("genre", -1) || get("genres", -1) : parts[2] || "";
+    const themeRaw = header ? get("theme", -1) || get("themes", -1) : parts[3] || "";
+    const energyRaw = header ? get("energy", -1) : parts[4] || "";
+    if (!spotify) spotify = header ? get("spotify", -1) || get("spotify link", -1) || get("spotifytrackid", -1) : parts[5] || "";
+    return { key: n, include: true, title, artist, genreText: genreRaw, themeText: themeRaw, energy: energyRaw.toLowerCase(), spotify };
+  });
+}
+const splitList = (t) => t.split(/[\/;|]/).map((x) => x.trim()).filter(Boolean);
+function resolveRow(r, defaults) {
+  const gIn = splitList(r.genreText), tIn = splitList(r.themeText);
+  const genres = gIn.length ? listOf(gIn, state.options.genres) : defaults.genres;
+  const themes = tIn.length ? listOf(tIn, state.options.themes) : defaults.themes;
+  const badGenres = gIn.filter((x) => !matchLabel(x, state.options.genres));
+  const badThemes = tIn.filter((x) => !matchLabel(x, state.options.themes));
+  const energy = ["low", "medium", "high"].includes(r.energy) ? r.energy : r.energy ? null : defaults.energy;
+  const sp = r.spotify ? parseSpotify(r.spotify) : { ok: false, empty: true };
+  return { genres, themes, badGenres, badThemes, energy, sp };
+}
+function bulkDefaults() {
+  return {
+    genres: [...document.querySelectorAll("#bulkGenre input:checked")].map((x) => x.value),
+    themes: [...document.querySelectorAll("#bulkTheme input:checked")].map((x) => x.value),
+    energy: document.querySelector("#bulkEnergy input:checked")?.value || "medium",
+  };
+}
+function bulkCheck() {
+  const d = bulkDefaults(), seenKeys = new Map(), seenSp = new Map();
+  const libKeys = new Map(state.songs.map((s) => [dupKey(s), s])), libSp = new Map(state.songs.filter((s) => s.spotifyTrackId).map((s) => [s.spotifyTrackId, s]));
+  return bulk.rows.map((r) => {
+    const v = resolveRow(r, d), problems = [], notes = [];
+    if (!r.title) problems.push("Add the song title");
+    if (!r.artist) problems.push("Add the artist");
+    if (v.badGenres.length) problems.push(`Unknown genre: ${v.badGenres.join(", ")}`);
+    else if (!v.genres.length) problems.push("Pick a genre (or set one above)");
+    if (v.badThemes.length) problems.push(`Unknown theme: ${v.badThemes.join(", ")}`);
+    else if (!v.themes.length) problems.push("Pick a theme (or set one above)");
+    if (v.energy === null) problems.push("Energy must be low, medium or high");
+    if (!v.sp.ok && !v.sp.empty) problems.push(v.sp.reason);
+    let skip = null;
+    if (r.title && r.artist) {
+      const k = dupKey(r), lib = libKeys.get(k);
+      if (lib) skip = `Already in the library${lib.retired ? " (retired: restore it instead)" : ""}`;
+      else if (seenKeys.has(k)) skip = `Listed twice (same as row ${seenKeys.get(k) + 1})`;
+      else seenKeys.set(k, r.key);
+    }
+    if (!skip && v.sp.ok) {
+      const lib = libSp.get(v.sp.id);
+      if (lib) skip = `Spotify track already used by “${lib.title}”`;
+      else if (seenSp.has(v.sp.id)) skip = "Same Spotify track as another row";
+      else seenSp.set(v.sp.id, r.key);
+    }
+    if (!v.sp.ok && v.sp.empty) notes.push("No Spotify link: no preview player");
+    return { r, v, problems, skip, notes };
+  });
+}
+function bulkRender(full) {
+  const checked = bulkCheck(), wrap = $("#bulkReviewWrap");
+  wrap.hidden = bulk.rows.length === 0;
+  if (full) {
+    $("#bulkRows").innerHTML = checked.map(({ r }) => `<tr data-key="${r.key}">
+      <td><input type="checkbox" data-f="include" ${r.include ? "checked" : ""} aria-label="Add row ${r.key + 1}" /></td>
+      <td><input type="text" data-f="title" value="${esc(r.title)}" aria-label="Song title, row ${r.key + 1}" /><div class="rowmsg"></div></td>
+      <td><input type="text" data-f="artist" value="${esc(r.artist)}" aria-label="Artist, row ${r.key + 1}" /></td>
+      <td><input type="text" data-f="genreText" value="${esc(r.genreText)}" list="genreList" aria-label="Genres, row ${r.key + 1}" /></td>
+      <td><input type="text" data-f="themeText" value="${esc(r.themeText)}" list="themeList" aria-label="Themes, row ${r.key + 1}" /></td>
+      <td><select data-f="energy" aria-label="Energy, row ${r.key + 1}"><option value="">Default</option>${r.energy && !["low", "medium", "high"].includes(r.energy) ? `<option value="${esc(r.energy)}" selected>${esc(r.energy)} (not valid)</option>` : ""}${["low", "medium", "high"].map((e) => `<option ${r.energy === e ? "selected" : ""}>${e}</option>`).join("")}</select></td>
+      <td><input type="text" data-f="spotify" value="${esc(r.spotify)}" aria-label="Spotify link, row ${r.key + 1}" /></td></tr>`).join("");
+  }
+  let ready = 0, skipped = 0, broken = 0;
+  for (const c of checked) {
+    const tr = $(`#bulkRows tr[data-key="${c.r.key}"]`); if (!tr) continue;
+    const off = !c.r.include || !!c.skip;
+    tr.classList.toggle("skip", off);
+    const msg = tr.querySelector(".rowmsg");
+    const placeholder = (f, val) => { const el = tr.querySelector(`[data-f=${f}]`); if (el) el.placeholder = val; };
+    const d = bulkDefaults();
+    placeholder("genreText", d.genres.map((g) => label.genre[g]).join(" / ") || "Genre");
+    placeholder("themeText", d.themes.map((t) => label.theme[t]).join(" / ") || "Theme");
+    tr.querySelector("[data-f=title]").setAttribute("aria-invalid", String(!c.r.title));
+    tr.querySelector("[data-f=artist]").setAttribute("aria-invalid", String(!c.r.artist));
+    tr.querySelector("[data-f=genreText]").setAttribute("aria-invalid", String(c.v.badGenres.length > 0 || !c.v.genres.length));
+    tr.querySelector("[data-f=themeText]").setAttribute("aria-invalid", String(c.v.badThemes.length > 0 || !c.v.themes.length));
+    tr.querySelector("[data-f=spotify]").setAttribute("aria-invalid", String(!c.v.sp.ok && !c.v.sp.empty));
+    if (c.skip) { msg.className = "rowmsg warn"; msg.textContent = `Skipped: ${c.skip}`; skipped++; }
+    else if (!c.r.include) { msg.className = "rowmsg"; msg.textContent = "Not added"; }
+    else if (c.problems.length) { msg.className = "rowmsg err"; msg.textContent = c.problems.join(". "); broken++; }
+    else { msg.className = "rowmsg ok"; msg.textContent = c.notes[0] ? `Ready. ${c.notes[0]}` : "Ready"; ready++; }
+  }
+  $("#bulkSummary").textContent = bulk.rows.length
+    ? `${bulk.rows.length} rows: ${ready} ready to add${broken ? `, ${broken} need fixing` : ""}${skipped ? `, ${skipped} skipped` : ""}.`
+    : "";
+  $("#bulkApply").disabled = ready === 0;
+  $("#bulkApply").textContent = ready ? `Add ${ready} song${ready > 1 ? "s" : ""}` : "Add songs";
+}
+function openBulk() {
+  const chips = (el, name, items, type, sel) => (el.innerHTML = items.map((it) => `<label><input type="${type}" name="${name}" value="${esc(it.id)}" ${sel.includes(it.id) ? "checked" : ""} /> ${esc(it.label)}</label>`).join(""));
+  chips($("#bulkGenre"), "bulkGenre", state.options.genres, "checkbox", []);
+  chips($("#bulkTheme"), "bulkTheme", state.options.themes, "checkbox", []);
+  chips($("#bulkEnergy"), "bulkEnergy", state.options.energies.map((e) => ({ id: e, label: e[0].toUpperCase() + e.slice(1) })), "radio", ["medium"]);
+  $("#genreList").innerHTML = state.options.genres.map((g) => `<option value="${esc(g.label)}">`).join("");
+  $("#themeList").innerHTML = state.options.themes.map((t) => `<option value="${esc(t.label)}">`).join("");
+  $("#bulkText").value = ""; bulk.rows = []; bulkRender(true);
+  $("#bulkDlg").showModal(); $("#bulkText").focus();
+}
+function applyBulk() {
+  const d = bulkDefaults(), taken = new Set(state.songs.map((s) => s.id)), added = [];
+  for (const c of bulkCheck()) {
+    if (!c.r.include || c.skip || c.problems.length) continue;
+    const id = makeId(c.r.title, c.r.artist, taken); taken.add(id);
+    const rec = { id, title: c.r.title, artist: c.r.artist, genres: c.v.genres, themes: c.v.themes, energy: c.v.energy || d.energy };
+    if (c.v.sp.ok) rec.spotifyTrackId = c.v.sp.id;
+    state.songs.push(rec); added.push(c.r.key);
+  }
+  bulk.rows = bulk.rows.filter((r) => !added.includes(r.key));
+  if (bulk.rows.length) { bulkRender(true); toast(`Added ${added.length}. The rows left need fixing or were skipped.`); }
+  else { $("#bulkDlg").close(); toast(`Added ${added.length} songs. Save to catalogue when you're done.`); }
+  $("#fStatus").value = "active"; $("#sort").value = "new"; state.page = 0; changed();
+}
+$("#bulkBtn").onclick = openBulk;
+$("#bulkText").addEventListener("input", () => { bulk.rows = bulkParse($("#bulkText").value); bulkRender(true); });
+$("#bulkOrder").addEventListener("change", () => { bulk.rows = bulkParse($("#bulkText").value); bulkRender(true); });
+$("#bulkDlg").addEventListener("change", (e) => { if (e.target.closest(".defaults")) bulkRender(false); });
+$("#bulkRows").addEventListener("input", (e) => {
+  const f = e.target.dataset.f, tr = e.target.closest("tr"); if (!f || !tr) return;
+  const row = bulk.rows.find((x) => String(x.key) === tr.dataset.key);
+  // Checkboxes and selects fire "input" too, so this one listener covers every cell.
+  row[f] = f === "include" ? e.target.checked : f === "title" || f === "artist" ? e.target.value.trim() : e.target.value;
+  bulkRender(false);
+});
+$("#bulkApply").onclick = applyBulk;
 load();
 </script>
 </body>
