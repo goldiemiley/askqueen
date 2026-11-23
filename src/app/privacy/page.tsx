@@ -24,7 +24,11 @@ const points: Array<{ title: string; body: string }> = [
   },
   {
     title: "Sharing shows the reading, not you",
-    body: "Share links and images contain the reading itself: the star sign, the date, the roast, the song and Sabrina's extras, or Sabrina's answer. They never include your name, birthday, music choices, orientation or the question you asked. Anyone with a share link can open that reading, so only send it to people you're happy to have see it.",
+    body: "Share links and images contain the reading itself: the star sign, the date, the roast, the song and Sabrina's extras, or Sabrina's answer. They never include your name, birthday or music choices. Anyone with a share link can open that reading, and links can be forwarded, so only send it to people you're happy to have see it.",
+  },
+  {
+    title: "Your Ask question stays private unless you show it",
+    body: "When you share an answer from Ask Queen, your question is left out unless you switch on Show my question. You'll see exactly what will be shared and can edit the question first. A shown question appears on the image and in the link after a # sign, which browsers don't send to our host, so it isn't in any server log. It isn't saved anywhere, but anyone who sees the image or link can read it.",
   },
   {
     title: "Facebook and Instagram are their own sites",

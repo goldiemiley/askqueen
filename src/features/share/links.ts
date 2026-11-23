@@ -146,6 +146,11 @@ export function parseShare(search: string): SharedResult {
   return invalid;
 }
 
+/** WhatsApp's own share link: opens the app (or WhatsApp Web) with the message filled in. */
+export function whatsappShareUrl(message: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+}
+
 export function facebookShareUrl(url: string): string {
   return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
 }

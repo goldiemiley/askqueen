@@ -61,18 +61,33 @@ Content lives in `src/data/`:
 
 ### How sharing works
 
-- **Links** go to `/share/?t=daily&...` or `/share/?t=ask&...`. They carry the result (sign, reading date,
-  roast id, intensity, song id and small indices for the song reason and extras), never the inputs: no
-  name, birthday, music choices or Ask question. `parseShare` checks every value against AskQueen's own
-  content, so a link can only ever show text AskQueen wrote. Bad or tampered links show a "vanished" page.
-- **Facebook** opens Facebook's sharer with the link. Its preview card is the site-wide image
-  (`public/og-image.png`): a static site can't make a different preview per result.
-- **Instagram Story** (1080×1920) and **Square image** (1080×1080) are drawn on a canvas in the browser
-  (`src/features/share/card.ts`). On phones the Story image goes to the share sheet, where people pick
-  Instagram; elsewhere it downloads. Websites can't attach music to Instagram, so the panel suggests
-  adding the song with Instagram's Music sticker.
-- **Shared Daily pages** include the same click-to-load Spotify preview as the Daily page.
-- Crisis replies and "try again" replies in Ask have no share options.
+- **One button.** Results show **Share my reading**. It opens a sheet (slides up on phones, a centred
+  window on desktop) with a live preview of the exact image and a Story / Square switch. Both images are
+  drawn when the sheet opens, so pressing Share opens the phone's share menu straight away (Safari won't
+  if the tap is followed by slow work). Share actions wait until the preview matches what's on screen,
+  so an out-of-date image is never shared.
+- **Phones** get **Share image** (the phone's share menu: Instagram, WhatsApp, Messages…). **Desktop**
+  gets **Copy link** first. Both also offer Download, Instagram Story, WhatsApp, Facebook and Copy as
+  text. Cancelling the share menu shows nothing; only a copied link is confirmed as done.
+- **Links** go to `/share/?t=daily&...` or `/share/?t=ask&...` and carry the result (sign, reading date,
+  roast id, intensity, song id, indices for the reason and extras), never the inputs: no name, birthday
+  or music choices. `parseShare` checks every value against AskQueen's own content. Old links keep working.
+- **Daily cards** show the roast with a music-player block (song, artist, Sabrina's reason). Shared Daily
+  pages put the song directly under the roast with the click-to-load Spotify preview. Websites can't add
+  music to Instagram Stories, so the sheet points to Instagram's Music sticker.
+- **Ask questions are private unless shown.** The sheet's **Show my question** switch is off by default.
+  When on, the user sees a warning and can edit the question, and the preview updates. The question
+  travels in the link's `#q=` part, which browsers never send to the server. Every question is treated
+  as untrusted and checked when shared and again when a link is opened (`src/features/share/question.ts`):
+  crisis questions are never shown; medical, legal, money and trust questions only appear with Sabrina's
+  "not my department" answers; links, emails and phone numbers are rejected; 5–250 characters.
+- **Limits:** link previews on Facebook and elsewhere show the site-wide image (a static site can't make
+  one per result). Some apps drop the `#` part, so the question may not reach the link (the image always
+  has it). Links can be forwarded. A hand-written link can show any question that passes the checks, so
+  the shared page labels it as written by the sharer.
+- Crisis and "try again" replies in Ask have no share options.
+- Real-phone checks: [`docs/real-device-checklist.md`](docs/real-device-checklist.md). Browser checks:
+  `e2e/share_checks.py`.
 
 ## Run it locally
 

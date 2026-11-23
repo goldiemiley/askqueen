@@ -4,7 +4,7 @@ import { songById } from "@/data/songs";
 import { addDays } from "@/features/daily/date";
 import { getDailyReading } from "@/features/daily/reading";
 import { wrapText } from "@/features/share/card";
-import { askCard, dailyCard } from "@/features/share/content";
+import { askCard, askShareText, dailyCard, dailyFullText, dailyShareDataFrom, dailyShareText } from "@/features/share/content";
 import { askShareParams, dailyShareParams, facebookShareUrl, parseShare, shareUrl } from "@/features/share/links";
 import { INTENSITIES, ZODIAC_SIGNS, type MusicGenre } from "@/types/content";
 
@@ -125,19 +125,33 @@ describe("share helpers", () => {
     expect(wrapText(measure, "supercalifragilistic", 50).join("")).toContain("supercalifragilistic");
   });
 
-  it("put no personal details on share cards", () => {
+  it("put no personal details on share cards, and the song on Daily cards", () => {
     const result = getDailyReading({ sign: "pisces", dateKey: "2026-11-22", genres: ["indie"], birthday: { month: 3, day: 1 } });
-    const card = dailyCard({
-      sign: result.sign,
-      dateKey: result.dateKey,
-      theme: result.theme,
-      roastText: result.roast.variants.gentle,
-      intensity: "gentle",
-      song: result.song,
-    });
+    const card = dailyCard(dailyShareDataFrom(result, "gentle"));
     expect(JSON.stringify(card)).not.toMatch(/1 March|March 1|03-01|birthday/i);
-    expect(card.subtitle).toBe("Sunday 22 November 2026");
-    const ask = askCard(allAskResponses[0], null);
-    expect(ask.body).toBe(allAskResponses[0].text);
+    expect(card.dateLabel).toBe("Sunday 22 November 2026");
+    expect(card.song).toEqual({ title: result.song.title, artist: result.song.artist, reason: result.songReason });
+    const ask = askCard(allAskResponses[0]);
+    expect(ask.answer).toBe(allAskResponses[0].text);
+    expect(ask.question).toBeUndefined();
+    expect(askCard(allAskResponses[0], "Will it work out?").question).toBe("Will it work out?");
+  });
+
+  it("include the song and the exact link in Daily share text", () => {
+    const result = getDailyReading({ sign: "leo", dateKey: "2026-11-22", genres: ["pop"] });
+    const data = dailyShareDataFrom(result, "savage");
+    const url = "https://x.github.io/askqueen/share/?t=daily&s=leo";
+    for (const text of [dailyShareText(data, url), dailyFullText(data, url)]) {
+      expect(text).toContain(result.song.title);
+      expect(text).toContain(result.song.artist);
+      expect(text).toContain(url);
+      expect(text).toContain(data.roastText);
+    }
+  });
+
+  it("only put the question in Ask share text when given", () => {
+    const r = allAskResponses[0];
+    expect(askShareText(r, null, "u")).not.toMatch(/asked/i);
+    expect(askShareText(r, "Will it work out?", "u")).toContain('I asked Sabrina: "Will it work out?"');
   });
 });

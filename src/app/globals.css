@@ -236,3 +236,98 @@
     transition: none;
   }
 }
+
+/* Share sheet: a bottom sheet on phones, a centred window from 640px. */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.share-sheet {
+  margin: auto 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 94dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 1.75rem 1.75rem 0 0;
+  background: var(--color-cream);
+  box-shadow: 0 -12px 40px rgb(36 24 38 / 0.35);
+}
+.share-sheet[open] {
+  animation: sheet-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.share-sheet::backdrop {
+  background: rgb(36 24 38 / 0.6);
+}
+.share-sheet-body {
+  padding: 0.75rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 640px) {
+  .share-sheet {
+    margin: auto;
+    width: min(54rem, calc(100vw - 3rem));
+    max-height: min(92dvh, 52rem);
+    border-radius: 1.75rem;
+    box-shadow: inset 0 0 0 2px var(--color-gold), 0 24px 60px rgb(36 24 38 / 0.4);
+  }
+  .share-sheet[open] {
+    animation: sheet-in 220ms ease-out;
+  }
+  .share-sheet-body {
+    padding: 1.75rem 2rem 2rem;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+.share-switch {
+  appearance: none;
+  flex: none;
+  width: 3rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: rgb(48 32 51 / 0.25);
+  position: relative;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.share-switch::after {
+  content: "";
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: var(--color-cream);
+  box-shadow: 0 1px 3px rgb(36 24 38 / 0.3);
+  transition: transform 150ms;
+}
+.share-switch:checked {
+  background: var(--color-burgundy);
+}
+.share-switch:checked::after {
+  transform: translateX(1.25rem);
+}
+.share-switch:focus-visible {
+  outline: 2px solid var(--color-burgundy);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .share-sheet[open] {
+    animation: none;
+  }
+  .share-switch,
+  .share-switch::after {
+    transition: none;
+  }
+}

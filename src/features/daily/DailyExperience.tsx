@@ -4,16 +4,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import { SunMoonGlyph } from "@/components/Glyphs";
 import { SharePanel } from "@/components/SharePanel";
 import { SongPreview } from "@/components/SongPreview";
-import { dailyCard } from "@/features/share/content";
-import { dailyShareParams, shareUrl } from "@/features/share/links";
+import { dailyCard, dailyFullText, dailyShareDataFrom, dailyShareText } from "@/features/share/content";
+import { dailyShareParams } from "@/features/share/links";
 import { signProfileById } from "@/data/signs";
 import { GENRE_LABELS } from "@/data/songs";
 import { themeById } from "@/data/themes";
-import { copyToClipboard } from "@/lib/clipboard";
 import { INTENSITIES, MUSIC_GENRES, type DailyResult, type Intensity, type MusicGenre } from "@/types/content";
 import { formatLongDate, localDateKey } from "./date";
 import { fallbackNote, getDailyReading, MAX_GENRES, roastText } from "./reading";
-import { formatDailyShareText, INTENSITY_LABELS } from "./share";
+import { INTENSITY_LABELS } from "./share";
 import { MONTH_NAMES, signForMonthDay, validateBirthDate, type BirthDateField } from "./zodiac";
 
 const INTENSITY_HINTS: Record<Intensity, string> = {
@@ -91,8 +90,6 @@ export function DailyExperience() {
   const [thinking, setThinking] = useState(false);
   const [result, setResult] = useState<DailyResult | null>(null);
   const [view, setView] = useState<"form" | "result">("form");
-  const [status, setStatus] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLSelectElement>(null);
@@ -100,7 +97,6 @@ export function DailyExperience() {
   const formHeadingRef = useRef<HTMLHeadingElement>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
   const timer = useRef<number | undefined>(undefined);
-  const copiedTimer = useRef<number | undefined>(undefined);
   const focusAfterRender = useRef<"result" | "form" | null>(null);
 
 
@@ -116,7 +112,6 @@ export function DailyExperience() {
   useEffect(
     () => () => {
       window.clearTimeout(timer.current);
-      window.clearTimeout(copiedTimer.current);
     },
     [],
   );
@@ -142,8 +137,6 @@ export function DailyExperience() {
       return;
     }
     setDobError(null);
-    setStatus("");
-    setCopied(false);
     setThinking(true);
     // Only the sign leaves this function; the birth date itself isn't kept anywhere.
     const sign = signForMonthDay(check.date.month, check.date.day);
@@ -164,7 +157,6 @@ export function DailyExperience() {
   }
 
   function changePreferences() {
-    setStatus("");
     focusAfterRender.current = "form";
     setView("form");
   }
@@ -179,30 +171,15 @@ export function DailyExperience() {
     setIntensity("savage");
     setDobError(null);
     setResult(null);
-    setStatus("");
-    setCopied(false);
     focusAfterRender.current = "form";
     setView("form");
-  }
-
-  async function onCopy() {
-    if (!result) return;
-    const link = shareUrl(window.location.origin, dailyShareParams(result, intensity));
-    const ok = await copyToClipboard(formatDailyShareText(result, intensity, link));
-    if (ok) {
-      setCopied(true);
-      setStatus("Reading copied to your clipboard.");
-      window.clearTimeout(copiedTimer.current);
-      copiedTimer.current = window.setTimeout(() => setCopied(false), 2500);
-    } else {
-      setStatus("Your browser blocked copying. Select the text and copy it yourself.");
-    }
   }
 
   const dobInvalid = (f: BirthDateField) => (dobError?.field === f ? true : undefined);
   const dobDescribedBy = [ids.dobHint, dobError ? ids.dobError : null].filter(Boolean).join(" ");
   const trimmedName = name.trim();
 
+  const shareData = result ? dailyShareDataFrom(result, intensity) : null;
   const intensityOptions = INTENSITIES.map((i) => ({ value: i, label: INTENSITY_LABELS[i], hint: INTENSITY_HINTS[i] }));
 
   return (
@@ -446,6 +423,19 @@ export function DailyExperience() {
               </div>
             </div>
 
+            <section aria-labelledby={`${ids.result}-song`} className="mt-8 rounded-[1.75rem] bg-blush px-6 py-7 text-plum sm:px-8">
+              <h3 id={`${ids.result}-song`} className="font-sans text-sm font-semibold text-burgundy">
+                Sabrina&rsquo;s song for this roast
+              </h3>
+              <p className="mt-2 font-display text-[2rem] leading-tight">{result.song.title}</p>
+              <p className="mt-1 text-lg">{result.song.artist}</p>
+              <p className="mt-4 max-w-[52ch]">{result.songReason}</p>
+              {result.genreFallback && (
+                <p className="mt-3 max-w-[52ch] text-[0.95rem] text-plum/80">{fallbackNote(result.theme)}</p>
+              )}
+              <SongPreview key={result.song.id} song={result.song} />
+            </section>
+
             <section aria-labelledby={`${ids.result}-extras`} className="mt-8">
               <h3 id={`${ids.result}-extras`} className="sr-only">
                 Sabrina&rsquo;s extras for today
@@ -466,23 +456,20 @@ export function DailyExperience() {
               </dl>
             </section>
 
-            <section aria-labelledby={`${ids.result}-song`} className="mt-8 rounded-[1.75rem] bg-blush px-6 py-7 text-plum sm:px-8">
-              <h3 id={`${ids.result}-song`} className="font-sans text-sm font-semibold text-burgundy">
-                Song of the day
-              </h3>
-              <p className="mt-2 font-display text-[2rem] leading-tight">{result.song.title}</p>
-              <p className="mt-1 text-lg">{result.song.artist}</p>
-              <p className="mt-4 max-w-[52ch]">{result.songReason}</p>
-              {result.genreFallback && (
-                <p className="mt-3 max-w-[52ch] text-[0.95rem] text-plum/80">{fallbackNote(result.theme)}</p>
-              )}
-              <SongPreview key={result.song.id} song={result.song} />
-            </section>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button type="button" className="btn btn-primary" onClick={onCopy}>
-                {copied ? "Copied" : "Copy result"}
-              </button>
+            {shareData && (
+            <SharePanel
+              params={dailyShareParams(result, intensity)}
+              card={dailyCard(shareData)}
+              fileStem={`askqueen-${result.sign}-${result.dateKey}`}
+              shareTitle={`Sabrina's daily roast for ${signProfileById[result.sign].displayName}`}
+              text={(url) => dailyShareText(shareData, url)}
+              fullText={(url) => dailyFullText(shareData, url)}
+              songTitle={result.song.title}
+              intro="Your roast and its song, as an image and a link."
+            />
+            )}
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button type="button" className="btn btn-ghost" onClick={changePreferences}>
                 Change preferences
               </button>
@@ -494,25 +481,8 @@ export function DailyExperience() {
                 Start again
               </button>
             </div>
-            <p role="status" className="mt-3 min-h-[1.5rem] text-[0.95rem] font-medium text-burgundy">
-              {status}
-            </p>
-            <SharePanel
-              params={dailyShareParams(result, intensity)}
-              card={dailyCard({
-                sign: result.sign,
-                dateKey: result.dateKey,
-                theme: result.theme,
-                roastText: roastText(result, intensity),
-                intensity,
-                song: result.song,
-              })}
-              fileStem={`askqueen-${result.sign}-${result.dateKey}`}
-              shareTitle={`Sabrina's daily roast for ${signProfileById[result.sign].displayName}`}
-              songTitle={result.song.title}
-            />
             <p className="mt-4 max-w-[60ch] text-sm leading-relaxed text-plum/70">
-              The copied text and share link include your sign and today&rsquo;s reading, not your name or birthday. Signs use common
+              Shared images and links include your sign and today&rsquo;s reading, never your name or birthday. Signs use common
               sun-sign dates; if you were born on the edge of two signs, other sources may disagree. For entertainment
               only.
             </p>

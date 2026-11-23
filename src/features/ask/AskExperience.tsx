@@ -3,11 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { CrystalBall, type OrbState } from "@/components/CrystalBall";
 import { SharePanel } from "@/components/SharePanel";
-import { askCard } from "@/features/share/content";
-import { askShareParams, shareUrl } from "@/features/share/links";
+import { askCard, askShareText } from "@/features/share/content";
+import { askShareParams } from "@/features/share/links";
 import { askSabrina, categoryLabels, stanceLabels, stanceOrbWords, type AskReading } from "./engine";
 import { QUESTION_MAX, questionErrorMessages, validateQuestion, type QuestionError } from "./question";
-import { formatShareText } from "./share";
 
 const EXAMPLES = [
   "Will they text me back?",
@@ -18,31 +17,6 @@ const EXAMPLES = [
 const THINK_MS = 1400;
 const THINK_MS_REDUCED = 350;
 
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through to the legacy approach
-  }
-  try {
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.setAttribute("readonly", "");
-    el.style.position = "fixed";
-    el.style.opacity = "0";
-    document.body.appendChild(el);
-    el.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(el);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
 export function AskExperience() {
   const [question, setQuestion] = useState("");
   const [askedQuestion, setAskedQuestion] = useState("");
@@ -50,14 +24,10 @@ export function AskExperience() {
   const [phase, setPhase] = useState<OrbState>("idle");
   const [reading, setReading] = useState<AskReading | null>(null);
   const [revision, setRevision] = useState(0);
-  const [includeQuestion, setIncludeQuestion] = useState(false);
-  const [status, setStatus] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
   const timer = useRef<number | undefined>(undefined);
-  const copiedTimer = useRef<number | undefined>(undefined);
 
   const ids = {
     input: useId(),
@@ -65,13 +35,11 @@ export function AskExperience() {
     error: useId(),
     count: useId(),
     result: useId(),
-    include: useId(),
   };
 
   useEffect(() => {
     return () => {
       window.clearTimeout(timer.current);
-      window.clearTimeout(copiedTimer.current);
     };
   }, []);
 
@@ -91,8 +59,6 @@ export function AskExperience() {
       return;
     }
     setError(null);
-    setStatus("");
-    setCopied(false);
     setPhase("thinking");
 
     const previousId = reading && reading.kind !== "crisis" ? reading.response.id : undefined;
@@ -116,37 +82,12 @@ export function AskExperience() {
     setAskedQuestion("");
     setReading(null);
     setPhase("idle");
-    setStatus("");
-    setCopied(false);
-    setIncludeQuestion(false);
     inputRef.current?.focus();
   }
 
   function rephrase() {
     inputRef.current?.focus();
     inputRef.current?.select();
-  }
-
-  function shareText(): string | null {
-    if (!reading || reading.kind === "crisis") return null;
-    return formatShareText(reading.response, {
-      question: includeQuestion ? askedQuestion : undefined,
-      url: shareUrl(window.location.origin, askShareParams(reading.response, reading.category)),
-    });
-  }
-
-  async function onCopy() {
-    const text = shareText();
-    if (!text) return;
-    const ok = await copyToClipboard(text);
-    if (ok) {
-      setCopied(true);
-      setStatus("Answer copied to your clipboard.");
-      window.clearTimeout(copiedTimer.current);
-      copiedTimer.current = window.setTimeout(() => setCopied(false), 2500);
-    } else {
-      setStatus("Your browser blocked copying. Select the answer text and copy it yourself.");
-    }
   }
 
   const orbWord = reading && reading.kind !== "crisis" ? stanceOrbWords[reading.response.stance] : undefined;
@@ -329,20 +270,30 @@ export function AskExperience() {
                   <p className="relative mt-3 max-w-[52ch] text-plum/75">{reading.response.nudge}</p>
                 )}
 
+                {reading.kind !== "unclear" && (
+                  <div className="relative">
+                    <SharePanel
+                      key={revision}
+                      params={askShareParams(reading.response, reading.category)}
+                      card={askCard(reading.response)}
+                      ask={{ response: reading.response, question: askedQuestion }}
+                      fileStem="askqueen-answer"
+                      shareTitle="Sabrina has spoken"
+                      text={(url, q) => askShareText(reading.response, q, url)}
+                      intro="Your question stays private unless you choose to show it."
+                    />
+                  </div>
+                )}
+
                 <div className="relative mt-6 flex flex-wrap gap-3">
                   {reading.kind === "unclear" ? (
                     <button type="button" className="btn btn-primary" onClick={rephrase}>
                       Rephrase my question
                     </button>
                   ) : (
-                    <>
-                      <button type="button" className="btn btn-primary" onClick={() => ask("again")}>
-                        Get another answer
-                      </button>
-                      <button type="button" className="btn btn-ghost" onClick={onCopy}>
-                        {copied ? "Copied" : "Copy answer"}
-                      </button>
-                    </>
+                    <button type="button" className="btn btn-ghost" onClick={() => ask("again")}>
+                      Get another answer
+                    </button>
                   )}
                   <button
                     type="button"
@@ -353,33 +304,6 @@ export function AskExperience() {
                   </button>
                 </div>
 
-                {reading.kind !== "unclear" && (
-                  <div className="relative mt-5 flex items-start gap-3">
-                    <input
-                      id={ids.include}
-                      type="checkbox"
-                      checked={includeQuestion}
-                      onChange={(e) => setIncludeQuestion(e.target.checked)}
-                      className="mt-1 h-5 w-5 shrink-0 accent-burgundy"
-                    />
-                    <label htmlFor={ids.include} className="text-[0.95rem] text-plum/80">
-                      Include my question when I copy the answer. Share links and images never include it.
-                    </label>
-                  </div>
-                )}
-                <p role="status" className="relative mt-3 min-h-[1.25rem] text-[0.95rem] font-medium text-burgundy">
-                  {status}
-                </p>
-                {reading.kind !== "unclear" && (
-                  <div className="relative">
-                    <SharePanel
-                      params={askShareParams(reading.response, reading.category)}
-                      card={askCard(reading.response, reading.category)}
-                      fileStem="askqueen-answer"
-                      shareTitle="Sabrina has spoken"
-                    />
-                  </div>
-                )}
               </div>
             )}
           </div>
