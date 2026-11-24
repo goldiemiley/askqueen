@@ -14,7 +14,7 @@
  * - Length limits match Ask Queen's own (5 to 250 characters).
  * React and canvas both render it as plain text, so no HTML can run.
  */
-import { seriousResponses, unclearResponses } from "@/data/ask-responses";
+import { seriousResponses } from "@/data/ask-responses";
 import { classifyQuestion } from "@/features/ask/classify";
 import { QUESTION_MAX, QUESTION_MIN } from "@/features/ask/question";
 import type { AskResponse } from "@/types/content";
@@ -35,7 +35,6 @@ export type QuestionProblem =
 export type QuestionCheck = { ok: true; question: string } | { ok: false; problem: QuestionProblem };
 
 const seriousIds = new Set(Object.values(seriousResponses).flat().map((r) => r.id));
-const unclearIds = new Set(unclearResponses.map((r) => r.id));
 
 // Control characters, zero-width characters and text-direction overrides
 // (which can disguise text) are replaced with spaces.
@@ -53,7 +52,8 @@ export function cleanQuestion(raw: string): string {
 
 /** Can this question be shown next to this answer? */
 export function checkShareableQuestion(raw: string, response: AskResponse): QuestionCheck {
-  if (unclearIds.has(response.id)) return { ok: false, problem: "answer_not_shareable" };
+  // "Please rephrase" replies (keyboard mash, confused, quiz questions) are never shared.
+  if (response.stance === "try_again") return { ok: false, problem: "answer_not_shareable" };
   const question = cleanQuestion(raw);
   if (!question) return { ok: false, problem: "empty" };
   if (question.length < QUESTION_MIN) return { ok: false, problem: "too_short" };

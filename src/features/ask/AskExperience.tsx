@@ -5,7 +5,7 @@ import { CrystalBall, type OrbState } from "@/components/CrystalBall";
 import { SharePanel } from "@/components/SharePanel";
 import { askCard, askShareText } from "@/features/share/content";
 import { askShareParams } from "@/features/share/links";
-import { askSabrina, categoryLabels, stanceLabels, stanceOrbWords, type AskReading } from "./engine";
+import { askSabrina, readAsLabel, stanceLabels, stanceOrbWords, type AskReading } from "./engine";
 import { QUESTION_MAX, questionErrorMessages, validateQuestion, type QuestionError } from "./question";
 
 const EXAMPLES = [
@@ -247,9 +247,9 @@ export function AskExperience() {
                   className="pointer-events-none absolute inset-2 rounded-[1.35rem] border border-gold"
                   aria-hidden="true"
                 />
-                {reading.kind === "answer" && reading.category && (
+                {reading.kind === "answer" && (
                   <p className="relative inline-block rounded-full bg-blush-soft px-3 py-1 text-sm text-plum">
-                    Read as: {categoryLabels[reading.category]}
+                    Read as: {readAsLabel(reading.response, reading.place, reading.category)}
                   </p>
                 )}
                 {reading.kind === "serious" && (
@@ -265,28 +265,29 @@ export function AskExperience() {
                 >
                   {stanceLabels[reading.response.stance]}
                 </h2>
-                <p className="relative mt-4 max-w-[52ch] text-[1.125rem] leading-relaxed">{reading.response.text}</p>
+                <p className="relative mt-4 max-w-[52ch] text-[1.125rem] leading-relaxed">{reading.text}</p>
                 {reading.response.nudge && (
                   <p className="relative mt-3 max-w-[52ch] text-plum/75">{reading.response.nudge}</p>
                 )}
 
-                {reading.kind !== "unclear" && (
+                {/* "Please rephrase" replies have nothing worth sharing. */}
+                {(reading.kind === "answer" || reading.kind === "serious") && (
                   <div className="relative">
                     <SharePanel
                       key={revision}
-                      params={askShareParams(reading.response, reading.category)}
-                      card={askCard(reading.response)}
-                      ask={{ response: reading.response, question: askedQuestion }}
+                      params={askShareParams(reading.response, reading.category, reading.place)}
+                      card={askCard(reading.response, null, reading.place)}
+                      ask={{ response: reading.response, question: askedQuestion, place: reading.place }}
                       fileStem="askqueen-answer"
                       shareTitle="Sabrina has spoken"
-                      text={(url, q) => askShareText(reading.response, q, url)}
+                      text={(url, q) => askShareText(reading.response, q, url, reading.place)}
                       intro="Your question stays private unless you choose to show it."
                     />
                   </div>
                 )}
 
                 <div className="relative mt-6 flex flex-wrap gap-3">
-                  {reading.kind === "unclear" ? (
+                  {reading.kind === "unclear" || reading.kind === "confused" ? (
                     <button type="button" className="btn btn-primary" onClick={rephrase}>
                       Rephrase my question
                     </button>

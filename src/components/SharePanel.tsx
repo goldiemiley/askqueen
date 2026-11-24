@@ -18,6 +18,7 @@ import {
   SHARED_QUESTION_MAX,
   withQuestion,
 } from "@/features/share/question";
+import type { Place } from "@/features/ask/places";
 import type { AskResponse } from "@/types/content";
 
 type CardInput = Omit<DailyCardContent, "site"> | Omit<AskCardContent, "site">;
@@ -38,7 +39,7 @@ type Props = {
   /** Daily: the song title, for the Instagram Music sticker tip. */
   songTitle?: string;
   /** Ask: lets the user choose to show their question (off by default). */
-  ask?: { response: AskResponse; question: string | null };
+  ask?: { response: AskResponse; question: string | null; place?: Place | null };
   /** Shown above the button. */
   intro?: string;
 };
@@ -128,7 +129,7 @@ export function SharePanel({ params, card, fileStem, shareTitle, text, fullText,
   const fullCard: CardContent | null = !origin
     ? null
     : ask
-      ? { ...askCard(ask.response, question), site }
+      ? { ...askCard(ask.response, question, ask.place ?? null), site }
       : ({ ...card, site } as CardContent);
   const cardKey = JSON.stringify(fullCard);
 

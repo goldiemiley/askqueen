@@ -175,7 +175,7 @@ with sync_playwright() as p:
     pg.locator("dialog[open] .btn-primary").click()
     pg.wait_for_timeout(200)
     qlink = pg.evaluate("navigator.clipboard.readText()")
-    ok("Ask: link carries the edited question in the #fragment only", "#q=" in qlink and "summer" not in qlink and "ex" not in urlparse(qlink).query, qlink)
+    ok("Ask: link carries the edited question in the #fragment only", "#q=" in qlink and "summer" not in qlink and not re.search(r"come|back|will", urlparse(qlink).query, re.I), qlink)
     pg.screenshot(path=f"{OUT}/sheet-ask-desktop-1440.png")
 
     # Crisis edit blocks sharing

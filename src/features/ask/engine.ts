@@ -1,22 +1,41 @@
 /**
- * Ask Queen response engine: question in, one of Sabrina's pre-written
- * answers out. Pure and in-memory: nothing is logged, stored or sent.
+ * Ask Queen response engine: question in, one of Sabrina's written answers out.
+ * Pure and in-memory: nothing is logged, stored or sent.
+ *
+ * Answers come from the pool for the question's specific intent, filtered to
+ * fit how it was asked ("Will I…?" gets predictions, "Should I…?" gets advice).
+ * When a destination was recognised, answers that name it come first.
+ * Within one visit, answers rotate without repeats until an intent's pool is
+ * used up. That memory lives in this module only and is gone on reload, so
+ * there is no promise of variety across visits.
  */
-import { seriousResponses, topicResponses, unclearResponses } from "@/data/ask-responses";
-import type { AskCategory, AskResponse, AskStance } from "@/types/content";
+import { confusedAnswers, intentAnswers, seriousResponses, triviaAnswers, unclearResponses } from "@/data/ask-responses";
+import type { AskCategory, AskIntent, AskResponse, AskStance, AskTag, QuestionForm } from "@/types/content";
 import { classifyQuestion, type Classification, type SeriousTopic } from "./classify";
+import type { Place } from "./places";
 
 export type AskReading =
   | { kind: "crisis" }
   | {
-      kind: "answer" | "unclear" | "serious";
+      /** answer: a real answer. serious: "not my department". unclear/confused: please rephrase. */
+      kind: "answer" | "serious" | "unclear" | "confused";
       response: AskResponse;
-      /** Topic Sabrina matched the question to, shown to the user for transparency. */
+      /** The answer as shown, with {place} filled in. */
+      text: string;
+      /** Broad topic (kept for share links and older code). */
       category: AskCategory | null;
+      /** Specific intent Sabrina matched, shown as "Read as: …". */
+      intent: AskIntent | null;
+      place: Place | null;
       topic: SeriousTopic | null;
     };
 
 export type Rng = () => number;
+
+/** Fills {place}. Answers with {place} are only chosen when a place is known. */
+export function renderAnswer(response: Pick<AskResponse, "text">, place: Pick<Place, "name"> | null): string {
+  return response.text.replace(/\{place\}/g, place?.name ?? "there");
+}
 
 /** Picks a random item, avoiding `avoidId` when there is an alternative. */
 export function pick(pool: AskResponse[], rng: Rng, avoidId?: string): AskResponse {
@@ -25,26 +44,80 @@ export function pick(pool: AskResponse[], rng: Rng, avoidId?: string): AskRespon
   return candidates[index];
 }
 
-export function readingFor(classification: Classification, rng: Rng, previousId?: string): AskReading {
-  switch (classification.kind) {
+// ---------- Session rotation (memory only) ----------
+
+const seenThisVisit = new Map<string, Set<string>>();
+
+/** Clears this visit's rotation memory (tests, or a fresh start). */
+export function resetAskSession() {
+  seenThisVisit.clear();
+}
+
+/**
+ * Picks from the first tier that still has unseen answers. When every answer
+ * in the pool has been seen this visit, starts over (still never the one just shown).
+ */
+function rotate(key: string, tiers: AskResponse[][], rng: Rng, avoidId?: string): AskResponse {
+  const seen = seenThisVisit.get(key) ?? new Set<string>();
+  seenThisVisit.set(key, seen);
+  for (const tier of tiers) {
+    const fresh = tier.filter((r) => !seen.has(r.id) && r.id !== avoidId);
+    if (fresh.length) {
+      const chosen = pick(fresh, rng);
+      seen.add(chosen.id);
+      return chosen;
+    }
+  }
+  seen.clear();
+  const all = tiers.flat();
+  const chosen = pick(all, rng, avoidId);
+  seen.add(chosen.id);
+  return chosen;
+}
+
+/**
+ * Answers for an intent that fit the question. Exported for tests.
+ * - Subject-specific answers (tags) only when the question mentions that subject.
+ * - Form: predictions for "Will I…", advice for "Should I…".
+ * - Tiers, most specific first: names the place → about the subject → general.
+ */
+export function candidateTiers(intent: AskIntent, form: QuestionForm | null, place: Place | null, tags: AskTag[] = []): AskResponse[][] {
+  const onTopic = intentAnswers[intent].filter((r) => !r.tags || r.tags.some((t) => tags.includes(t)));
+  const fits = (r: AskResponse) => !form || !r.forms || r.forms.includes(form);
+  let fitting = onTopic.filter(fits);
+  // A thin pool for this form falls back to every on-topic answer.
+  if (fitting.length < 3) fitting = onTopic;
+  const usable = place ? fitting : fitting.filter((r) => !r.usesPlace);
+  const tiers = [
+    usable.filter((r) => r.usesPlace),
+    usable.filter((r) => !r.usesPlace && r.tags),
+    usable.filter((r) => !r.usesPlace && !r.tags),
+  ];
+  return tiers.filter((t) => t.length > 0);
+}
+
+export function readingFor(c: Classification, rng: Rng, previousId?: string): AskReading {
+  const base = { category: null, intent: null, place: null, topic: null };
+  switch (c.kind) {
     case "crisis":
       return { kind: "crisis" };
-    case "serious":
-      return {
-        kind: "serious",
-        response: pick(seriousResponses[classification.topic], rng, previousId),
-        category: null,
-        topic: classification.topic,
-      };
-    case "unclear":
-      return { kind: "unclear", response: pick(unclearResponses, rng, previousId), category: null, topic: null };
-    case "topic":
-      return {
-        kind: "answer",
-        response: pick(topicResponses[classification.category], rng, previousId),
-        category: classification.category,
-        topic: null,
-      };
+    case "serious": {
+      const response = rotate(`serious:${c.topic}`, [seriousResponses[c.topic]], rng, previousId);
+      return { ...base, kind: "serious", response, text: response.text, topic: c.topic };
+    }
+    case "unclear": {
+      const response = rotate("unclear", [unclearResponses], rng, previousId);
+      return { ...base, kind: "unclear", response, text: response.text };
+    }
+    case "confused": {
+      const response = rotate(`confused:${c.reason}`, [c.reason === "trivia" ? triviaAnswers : confusedAnswers], rng, previousId);
+      return { ...base, kind: "confused", response, text: response.text };
+    }
+    case "intent": {
+      const response = rotate(`intent:${c.intent}`, candidateTiers(c.intent, c.form, c.place, c.tags), rng, previousId);
+      // The label always shows the place Sabrina recognised; the text only names it when written to.
+      return { kind: "answer", response, text: renderAnswer(response, c.place), category: c.topic, intent: c.intent, place: c.place, topic: null };
+    }
   }
 }
 
@@ -78,3 +151,34 @@ export const categoryLabels: Record<AskCategory, string> = {
   money: "Money",
   other: "General vibes",
 };
+
+/** What Sabrina understood the question to be about ("Read as: …"). */
+export const intentLabels: Record<AskIntent, string> = {
+  relocation: "Moving abroad",
+  moving_home: "Moving home",
+  travel: "Travel",
+  social_plans: "Plans and nights out",
+  fashion: "Style",
+  shopping: "Shopping",
+  money: "Money",
+  career: "Work and career",
+  interview: "Job interviews",
+  exams: "Exams and studying",
+  ex: "Your ex",
+  texting: "Texting",
+  romance: "Love life",
+  commitment: "Commitment",
+  family: "Family",
+  friendship: "Friends",
+  ambition: "Big dreams",
+  self_doubt: "You",
+  self_worth: "You",
+  decision: "A decision",
+  future: "Your future",
+};
+
+/** "Moving abroad: Portugal", "Exams and studying", or the old broad label. */
+export function readAsLabel(r: Pick<AskResponse, "intent" | "category">, place: Pick<Place, "name"> | null, category?: AskCategory | null): string {
+  if (r.intent) return place ? `${intentLabels[r.intent]}: ${place.name}` : intentLabels[r.intent];
+  return categoryLabels[category ?? r.category];
+}

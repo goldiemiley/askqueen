@@ -59,6 +59,29 @@ Content lives in `src/data/`:
 - `themes.ts` holds the 8 themes with 7 "why this song" lines each.
 - `daily-extras.ts` holds 48 advice lines plus 40 lucky and 40 avoid items.
 
+### How Ask Sabrina answers
+
+Everything runs in the browser; questions are never stored or sent (`src/features/ask/`).
+
+1. **Safety first:** crisis questions show support resources, never a joke. Medical, legal, immigration
+   (visas, residency, work permits), investment and gambling, and infidelity questions get "Not my
+   department", never a prediction.
+2. **Specific intent:** 20 intents (moving abroad, moving home, travel, nights out, style, shopping, money,
+   career, interviews, exams, exes, texting, love life, commitment, family, friends, big dreams, self-doubt,
+   self-worth, decisions, the future) are scored from weighted cues in `classify.ts`. Each intent has its own
+   answers in `src/data/ask-answers.ts` (226), so "Will I move to Portugal?" can never get a night-out joke.
+3. **Fit the question:** "Will I…" gets predictions and "Should I…" gets advice. 234 known destinations
+   (`places.ts`) are echoed back ("The signs point to Portugal"). Subject tags keep tattoo answers off hair
+   questions, and kids questions only get non-predictive answers.
+4. **Not sure? Say so:** low-confidence and quiz questions ("What's the capital of France?") get a "give me a
+   little more detail" reply instead of a made-up answer.
+5. **Variety:** answers rotate without repeats within a visit until an intent's pool is used up. This lives in
+   memory only, so variety across visits isn't promised.
+
+Share links carry the answer ID and, for destination answers, a key from AskQueen's own place list (never
+free text). The original 48 broad answers are retired but still open old share links. Acceptance tests:
+`tests/ask-relevance.test.ts` (140 questions) and `e2e/ask_checks.py`.
+
 ### How sharing works
 
 - **One button.** Results show **Share my reading**. It opens a sheet (slides up on phones, a centred

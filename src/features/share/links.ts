@@ -9,6 +9,7 @@
  * site.
  */
 import { allAskResponses } from "@/data/ask-responses";
+import { placeByKey, type Place } from "@/features/ask/places";
 import { ADVICE, AVOID, LUCKY } from "@/data/daily-extras";
 import { allRoasts } from "@/data/roasts";
 import { songById } from "@/data/songs";
@@ -45,6 +46,8 @@ export type SharedAsk = {
   kind: "ask";
   response: AskResponse;
   category: AskCategory | null;
+  /** The destination named in the answer, from AskQueen's own list. */
+  place: Place | null;
 };
 
 export type SharedResult = SharedDaily | SharedAsk | { kind: "invalid" };
@@ -71,9 +74,11 @@ export function dailyShareParams(result: DailyResult, intensity: Intensity): URL
   });
 }
 
-export function askShareParams(response: AskResponse, category: AskCategory | null): URLSearchParams {
+export function askShareParams(response: AskResponse, category: AskCategory | null, place: Place | null = null): URLSearchParams {
   const p = new URLSearchParams({ t: "ask", a: response.id });
   if (category) p.set("c", category);
+  // Only a key from AskQueen's own place list, and only when the answer names it.
+  if (response.usesPlace && place) p.set("p", place.key);
   return p;
 }
 
@@ -140,7 +145,11 @@ export function parseShare(search: string): SharedResult {
     if (!response) return invalid;
     const c = p.get("c");
     if (c !== null && !(ASK_CATEGORIES as readonly string[]).includes(c)) return invalid;
-    return { kind: "ask", response, category: (c as AskCategory | null) ?? null };
+    const pk = p.get("p");
+    const place = pk === null ? null : (placeByKey[pk] ?? null);
+    if (pk !== null && (!place || !response.usesPlace)) return invalid;
+    if (response.usesPlace && !place) return invalid;
+    return { kind: "ask", response, category: (c as AskCategory | null) ?? null, place };
   }
 
   return invalid;

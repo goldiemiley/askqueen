@@ -6,7 +6,7 @@ import { SharePanel } from "@/components/SharePanel";
 import { SongPreview } from "@/components/SongPreview";
 import { signProfileById } from "@/data/signs";
 import { themeById } from "@/data/themes";
-import { categoryLabels, stanceLabels } from "@/features/ask/engine";
+import { readAsLabel, renderAnswer, stanceLabels } from "@/features/ask/engine";
 import { formatLongDate } from "@/features/daily/date";
 import { INTENSITY_LABELS } from "@/features/daily/share";
 import { askCard, askShareText, dailyCard, dailyFullText, dailyShareText, type DailyShareData } from "./content";
@@ -67,7 +67,7 @@ export function SharedResultView() {
   const params = new URLSearchParams(query);
 
   if (shared.kind === "ask") {
-    const { response, category } = shared;
+    const { response, category, place } = shared;
     // The question (if any) is in the #fragment and is re-checked here.
     const { question, rejected } = questionFromHash(hash, response);
     return (
@@ -89,13 +89,13 @@ export function SharedResultView() {
             <p className="relative text-sm font-semibold text-burgundy">Sabrina&rsquo;s answer</p>
             {category && !question && (
               <p className="relative mt-2 inline-block rounded-full bg-blush-soft px-3 py-1 text-sm text-plum">
-                Read as: {categoryLabels[category]}
+                Read as: {readAsLabel(response, place, category)}
               </p>
             )}
             <p className="relative mt-3 font-display text-[2.5rem] leading-none text-burgundy sm:text-[3rem]">
               {stanceLabels[response.stance]}
             </p>
-            <p className="relative mt-4 max-w-[52ch] text-[1.125rem] leading-relaxed">{response.text}</p>
+            <p className="relative mt-4 max-w-[52ch] text-[1.125rem] leading-relaxed">{renderAnswer(response, place)}</p>
             {response.nudge && <p className="relative mt-3 max-w-[52ch] text-plum/75">{response.nudge}</p>}
             {!question && (
               <p className="relative mt-5 text-sm text-plum/70">
@@ -115,11 +115,11 @@ export function SharedResultView() {
             <div className="relative">
               <SharePanel
                 params={params}
-                card={askCard(response)}
-                ask={{ response, question }}
+                card={askCard(response, null, place)}
+                ask={{ response, question, place }}
                 fileStem="askqueen-answer"
                 shareTitle="Sabrina has spoken"
-                text={(url, q) => askShareText(response, q, url)}
+                text={(url, q) => askShareText(response, q, url, place)}
               />
             </div>
           </div>

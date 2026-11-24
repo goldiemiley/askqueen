@@ -6,6 +6,9 @@
 import {
   ENERGY_LEVELS,
   ASK_CATEGORIES,
+  ASK_INTENTS,
+  ASK_TAGS,
+  QUESTION_FORMS,
   ASK_STANCES,
   INTENSITIES,
   MUSIC_GENRES,
@@ -117,6 +120,14 @@ export function validateAskResponse(v: unknown): Problems {
   if (!nonEmpty(v.text)) out.push("text is required");
   else if ((v.text as string).length > 280) out.push("text should be 1–3 short sentences (max 280 chars)");
   if (v.nudge !== undefined && !nonEmpty(v.nudge)) out.push("nudge must be text when present");
+  if (v.intent !== undefined && !oneOf(ASK_INTENTS, v.intent)) out.push("intent is invalid");
+  if (v.forms !== undefined && (!Array.isArray(v.forms) || !v.forms.every((f) => oneOf(QUESTION_FORMS, f))))
+    out.push("forms must be a list of will/should");
+  if (v.tags !== undefined && (!Array.isArray(v.tags) || v.tags.length === 0 || !v.tags.every((t) => oneOf(ASK_TAGS, t))))
+    out.push("tags must be a non-empty list of known tags");
+  const usesSlot = typeof v.text === "string" && v.text.includes("{place}");
+  if (usesSlot !== (v.usesPlace === true)) out.push("usesPlace must be set exactly when the text contains {place}");
+  if (typeof v.text === "string" && /\{(?!place\})/.test(v.text)) out.push("text has an unknown {slot}");
   return out;
 }
 

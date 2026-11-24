@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { allAskResponses } from "@/data/ask-responses";
+import { placeByKey } from "@/features/ask/places";
 import { songById } from "@/data/songs";
 import { addDays } from "@/features/daily/date";
 import { getDailyReading } from "@/features/daily/reading";
@@ -88,9 +89,10 @@ describe("daily share links", () => {
 
 describe("ask share links", () => {
   it("round-trip every response and keep the question out", () => {
+    const portugal = placeByKey.portugal;
     for (const response of allAskResponses) {
-      const params = askShareParams(response, "romance");
-      expect([...params.keys()].sort()).toEqual(["a", "c", "t"]);
+      const params = askShareParams(response, "romance", response.usesPlace ? portugal : null);
+      expect([...params.keys()].sort()).toEqual(response.usesPlace ? ["a", "c", "p", "t"] : ["a", "c", "t"]);
       const shared = parseShare(params.toString());
       expect(shared.kind).toBe("ask");
       if (shared.kind === "ask") {
@@ -98,7 +100,8 @@ describe("ask share links", () => {
         expect(shared.category).toBe("romance");
       }
     }
-    const noCategory = parseShare(askShareParams(allAskResponses[0], null).toString());
+    const plain = allAskResponses.find((r) => !r.usesPlace)!;
+    const noCategory = parseShare(askShareParams(plain, null).toString());
     expect(noCategory.kind === "ask" && noCategory.category).toBe(null);
   });
 
@@ -131,10 +134,13 @@ describe("share helpers", () => {
     expect(JSON.stringify(card)).not.toMatch(/1 March|March 1|03-01|birthday/i);
     expect(card.dateLabel).toBe("Sunday 22 November 2026");
     expect(card.song).toEqual({ title: result.song.title, artist: result.song.artist, reason: result.songReason });
-    const ask = askCard(allAskResponses[0]);
-    expect(ask.answer).toBe(allAskResponses[0].text);
+    const plain = allAskResponses.find((r) => !r.usesPlace)!;
+    const ask = askCard(plain);
+    expect(ask.answer).toBe(plain.text);
     expect(ask.question).toBeUndefined();
-    expect(askCard(allAskResponses[0], "Will it work out?").question).toBe("Will it work out?");
+    expect(askCard(plain, "Will it work out?").question).toBe("Will it work out?");
+    const placed = allAskResponses.find((r) => r.usesPlace)!;
+    expect(askCard(placed, null, placeByKey.portugal).answer).toContain("Portugal");
   });
 
   it("include the song and the exact link in Daily share text", () => {

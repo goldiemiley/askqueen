@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allAskResponses, seriousResponses, topicResponses, unclearResponses } from "@/data/ask-responses";
+import { allAskResponses, intentAnswers, seriousResponses, topicResponses, unclearResponses } from "@/data/ask-responses";
 import { classifyQuestion } from "@/features/ask/classify";
 import { askSabrina, pick } from "@/features/ask/engine";
 import { QUESTION_MAX, validateQuestion } from "@/features/ask/question";
@@ -30,23 +30,27 @@ describe("validateQuestion", () => {
   });
 });
 
-describe("classifyQuestion: topics", () => {
+describe("classifyQuestion: intents", () => {
+  // Broad topics were replaced by specific intents (see tests/ask-relevance.test.ts for 140 more).
   const cases: Array<[string, string]> = [
-    ["Will they text me back?", "romance"],
+    ["Will they text me back?", "texting"],
     ["Is my crush into me?", "romance"],
-    ["Should I make the first move?", "romance"],
+    ["Should I make the first move?", "texting"],
     ["Should I ask my boss for a raise?", "career"],
-    ["Will I pass my exam?", "career"],
-    ["Will I kill it at my interview?", "career"],
+    ["Will I pass my exam?", "exams"],
+    ["Will I kill it at my interview?", "interview"],
     ["Is my bestie mad at me?", "friendship"],
-    ["Should I go to the party tonight?", "plans"],
-    ["Should I buy these shoes?", "money"],
-    ["Is today going to be good?", "other"],
-    ["Will it work out?", "other"],
-    ["Да ли ће данас бити добро?", "other"],
+    ["Should I go to the party tonight?", "social_plans"],
+    ["Should I buy these shoes?", "shopping"],
+    ["Is today going to be good?", "future"],
+    ["Will it work out?", "future"],
   ];
-  it.each(cases)("%s → %s", (question, category) => {
-    expect(classifyQuestion(question)).toEqual({ kind: "topic", category });
+  it.each(cases)("%s → %s", (question, intent) => {
+    const c = classifyQuestion(question);
+    expect(c.kind === "intent" && c.intent).toBe(intent);
+  });
+  it("asks for more detail instead of guessing at a language it can't read", () => {
+    expect(classifyQuestion("Да ли ће данас бити добро?")).toEqual({ kind: "confused", reason: "low_confidence" });
   });
 });
 
@@ -75,8 +79,8 @@ describe("classifyQuestion: safety", () => {
   });
 
   it("does not treat common hyperbole as a crisis", () => {
-    expect(classifyQuestion("This job is killing me, should I quit?").kind).toBe("topic");
-    expect(classifyQuestion("Will I kill it at my interview?").kind).toBe("topic");
+    expect(classifyQuestion("This job is killing me, should I quit?").kind).toBe("intent");
+    expect(classifyQuestion("Will I kill it at my interview?").kind).toBe("intent");
   });
 
   it("crisis wins over every other topic", () => {
@@ -89,17 +93,18 @@ describe("classifyQuestion: unclear input", () => {
     expect(classifyQuestion(q)).toEqual({ kind: "unclear" });
   });
   it("a real question with one odd word is still answered", () => {
-    expect(classifyQuestion("What are my strengths at work?").kind).toBe("topic");
+    expect(classifyQuestion("What are my strengths at work?").kind).toBe("intent");
   });
 });
 
 describe("askSabrina", () => {
-  it("answers from the matched category and reports it", () => {
+  it("answers from the matched intent and reports it", () => {
     const reading = askSabrina("Will they text me back?", { rng: seeded(1) });
     expect(reading.kind).toBe("answer");
     if (reading.kind !== "answer") return;
     expect(reading.category).toBe("romance");
-    expect(topicResponses.romance).toContainEqual(reading.response);
+    expect(reading.intent).toBe("texting");
+    expect(intentAnswers.texting).toContainEqual(reading.response);
   });
 
   it("never repeats the previous answer when asked again", () => {

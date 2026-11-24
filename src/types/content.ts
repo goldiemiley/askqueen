@@ -66,6 +66,43 @@ export type AskCategory = (typeof ASK_CATEGORIES)[number];
 export const ASK_STANCES = ["yes", "no", "maybe", "try_again", "not_an_oracle"] as const;
 export type AskStance = (typeof ASK_STANCES)[number];
 
+/**
+ * Specific things people ask Sabrina about. Each has its own answers, so a
+ * question about moving to Portugal never gets a night-out joke.
+ */
+export const ASK_INTENTS = [
+  "relocation",
+  "moving_home",
+  "travel",
+  "social_plans",
+  "fashion",
+  "shopping",
+  "money",
+  "career",
+  "interview",
+  "exams",
+  "ex",
+  "texting",
+  "romance",
+  "commitment",
+  "family",
+  "friendship",
+  "ambition",
+  "self_doubt",
+  "self_worth",
+  "decision",
+  "future",
+] as const;
+export type AskIntent = (typeof ASK_INTENTS)[number];
+
+/** Subjects inside an intent that some answers are specific to. */
+export const ASK_TAGS = ["hair", "ink", "clothes", "raise", "quit", "jobhunt", "apply", "lend", "propose", "move_in", "kids", "relatives", "text"] as const;
+export type AskTag = (typeof ASK_TAGS)[number];
+
+/** "will" = a prediction ("Will I…?"), "should" = advice ("Should I…?"). */
+export const QUESTION_FORMS = ["will", "should"] as const;
+export type QuestionForm = (typeof QUESTION_FORMS)[number];
+
 export const RELATIONSHIP_TYPES = [
   "crush",
   "dating",
@@ -129,6 +166,19 @@ export type Song = {
 export type AskResponse = {
   id: string;
   category: AskCategory;
+  /** The specific intent this answer was written for (absent on legacy answers). */
+  intent?: AskIntent;
+  /** Question forms this answer fits. Absent: fits any question. */
+  forms?: QuestionForm[];
+  /**
+   * Only used when the question mentions one of these subjects (e.g. "hair",
+   * "ink"), so a tattoo question never gets a haircut answer.
+   */
+  tags?: AskTag[];
+  /** The text contains {place}, filled with a recognised destination. */
+  usesPlace?: true;
+  /** Kept only so old share links still open; never picked for new questions. */
+  retired?: true;
   stance: AskStance;
   /** 1–3 sentences. */
   text: string;

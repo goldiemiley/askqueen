@@ -1,7 +1,8 @@
 /** Card content and share text for each kind of result. No name or birthday goes in. */
 import { signProfileById } from "@/data/signs";
 import { themeById } from "@/data/themes";
-import { stanceLabels } from "@/features/ask/engine";
+import { renderAnswer, stanceLabels } from "@/features/ask/engine";
+import type { Place } from "@/features/ask/places";
 import { formatLongDate } from "@/features/daily/date";
 import { INTENSITY_LABELS } from "@/features/daily/share";
 import { roastText } from "@/features/daily/reading";
@@ -74,21 +75,21 @@ export function dailyFullText(d: DailyShareData, url: string): string {
   ].join("\n");
 }
 
-export function askCard(response: AskResponse, question?: string | null): Omit<AskCardContent, "site"> {
+export function askCard(response: AskResponse, question?: string | null, place: Place | null = null): Omit<AskCardContent, "site"> {
   return {
     kind: "ask",
     ...(question ? { question } : {}),
     verdict: stanceLabels[response.stance],
-    answer: response.text,
+    answer: renderAnswer(response, place),
     nudge: response.nudge,
   };
 }
 
 /** Text for the share menu, WhatsApp and "Copy as text". Includes the question only if given. */
-export function askShareText(response: AskResponse, question: string | null, url: string): string {
+export function askShareText(response: AskResponse, question: string | null, url: string, place: Place | null = null): string {
   const lines: string[] = [];
   if (question) lines.push(`I asked Sabrina: "${question}"`);
-  lines.push(`${question ? "She said" : "Sabrina says"}: ${stanceLabels[response.stance]} ${response.text}`);
+  lines.push(`${question ? "She said" : "Sabrina says"}: ${stanceLabels[response.stance]} ${renderAnswer(response, place)}`);
   if (response.nudge) lines.push(response.nudge);
   lines.push(`askqueen. Ask your own: ${url}`);
   return lines.join("\n");

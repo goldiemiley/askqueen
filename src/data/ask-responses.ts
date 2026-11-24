@@ -1,5 +1,10 @@
 /**
- * Sabrina's pre-written Ask Queen answers.
+ * Registry of every Ask Queen answer.
+ *
+ * New questions are answered from the intent-specific answers in
+ * ask-answers.ts. The original broad-topic answers below are retired: they
+ * are never picked any more, but stay here so share links made before the
+ * relevance fix still open.
  *
  * Editorial rules (PRD §6): joke about situations and decisions, never about
  * identity, bodies, disability, nationality or race; don't state as fact what
@@ -8,8 +13,11 @@
  */
 import type { AskCategory, AskResponse } from "@/types/content";
 import type { SeriousTopic } from "@/features/ask/classify";
+import { confusedAnswers, intentAnswers, triviaAnswers } from "./ask-answers";
 
-export const topicResponses: Record<AskCategory, AskResponse[]> = {
+export { confusedAnswers, intentAnswers, triviaAnswers };
+
+const legacyTopicResponses: Record<AskCategory, AskResponse[]> = {
   romance: [
     { id: "rom-yes-1", category: "romance", stance: "yes", text: "The signs are pointing at them so hard it's embarrassing. Send the text, but read it twice first." },
     { id: "rom-yes-2", category: "romance", stance: "yes", text: "Venus is in your corner, which is more than I can say for your playlist.", nudge: "Lead with honesty, not a meme." },
@@ -72,6 +80,11 @@ export const topicResponses: Record<AskCategory, AskResponse[]> = {
   ],
 };
 
+/** Retired broad-topic answers (old share links only). */
+export const topicResponses: Record<AskCategory, AskResponse[]> = Object.fromEntries(
+  Object.entries(legacyTopicResponses).map(([k, list]) => [k, list.map((x) => ({ ...x, retired: true as const }))]),
+) as Record<AskCategory, AskResponse[]>;
+
 export const unclearResponses: AskResponse[] = [
   { id: "unc-1", category: "other", stance: "try_again", text: "Babe, be serious. That's not a question, that's a keyboard sneeze." },
   { id: "unc-2", category: "other", stance: "try_again", text: "I read tea leaves, not keysmashes. Try a real question." },
@@ -86,6 +99,10 @@ export const seriousResponses: Record<SeriousTopic, AskResponse[]> = {
   medical: [
     { id: "ser-med-1", category: "other", stance: "not_an_oracle", text: "A crystal ball isn't a doctor, babe. Please ask a medical professional about this one.", nudge: "If it's urgent, contact your local emergency number." },
     { id: "ser-med-2", category: "other", stance: "not_an_oracle", text: "I'm putting the sass down for this one. Your health deserves a real doctor or pharmacist, not a fictional witch." },
+  ],
+  immigration: [
+    { id: "ser-imm-1", category: "plans", stance: "not_an_oracle", text: "Visas and residency follow real rules, not the stars. Check the official government website or talk to a qualified immigration adviser." },
+    { id: "ser-imm-2", category: "plans", stance: "not_an_oracle", text: "I won't guess about paperwork that decides where you can live. Get the facts from the official source before you plan around it." },
   ],
   legal: [
     { id: "ser-leg-1", category: "other", stance: "not_an_oracle", text: "This one needs a lawyer, not a reader. Please talk to someone qualified before you decide anything." },
@@ -102,6 +119,9 @@ export const seriousResponses: Record<SeriousTopic, AskResponse[]> = {
 };
 
 export const allAskResponses: AskResponse[] = [
+  ...Object.values(intentAnswers).flat(),
+  ...confusedAnswers,
+  ...triviaAnswers,
   ...Object.values(topicResponses).flat(),
   ...unclearResponses,
   ...Object.values(seriousResponses).flat(),
