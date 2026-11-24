@@ -129,10 +129,10 @@ describe("validation", () => {
 
   it("counts coverage from active songs only", () => {
     const songs = clone();
-    const before = coverageOf(songs).byTheme.burnout;
-    songs.find((s) => s.themes.includes("burnout"))!.retired = true;
-    expect(coverageOf(songs).byTheme.burnout).toBe(before - 1);
-    expect(coverageOf(songs).retired).toBe(1);
+    const before = coverageOf(songs);
+    songs.find((s) => !s.retired && s.themes.includes("burnout"))!.retired = true;
+    expect(coverageOf(songs).byTheme.burnout).toBe(before.byTheme.burnout - 1);
+    expect(coverageOf(songs).retired).toBe(before.retired + 1);
   });
 });
 
@@ -176,7 +176,7 @@ describe("import and export", () => {
     const { songs } = normalizeImported(founderList);
     const m = mergeImport(clone(), songs, "replace");
     expect(m.songs.length).toBe(base.length + 2);
-    expect(m.retired).toBe(base.length - 3);
+    expect(m.songs.filter((s) => s.retired).length).toBe(base.length - 3);
     expect(m.songs.filter((s) => !s.retired).length).toBe(5);
     // Every old ID still exists, so old share links keep working.
     for (const r of base) expect(m.songs.some((s) => s.id === r.id)).toBe(true);

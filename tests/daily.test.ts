@@ -92,9 +92,10 @@ describe("music dataset", () => {
     expect(spotifySearchUrl("Telepatía", "Kali Uchis")).toBe("https://open.spotify.com/search/Telepat%C3%ADa%20Kali%20Uchis");
   });
 
-  it("gives every song a unique, well-formed Spotify track ID", () => {
-    for (const s of SONGS) expect(s.spotifyTrackId, s.id).toMatch(/^[0-9A-Za-z]{22}$/);
-    expect(new Set(SONGS.map((s) => s.spotifyTrackId)).size).toBe(SONGS.length);
+  it("gives every Spotify track ID a unique, well-formed value (the link itself is optional)", () => {
+    const withIds = SONGS.filter((s) => s.spotifyTrackId);
+    for (const s of withIds) expect(s.spotifyTrackId, s.id).toMatch(/^[0-9A-Za-z]{22}$/);
+    expect(new Set(withIds.map((s) => s.spotifyTrackId)).size).toBe(withIds.length);
     expect(spotifyEmbedUrl("3TGRqZ0a2l1LRblBkJoaDx")).toBe(
       "https://open.spotify.com/embed/track/3TGRqZ0a2l1LRblBkJoaDx?utm_source=generator",
     );

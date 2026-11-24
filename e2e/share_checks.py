@@ -131,9 +131,15 @@ with sync_playwright() as p:
     pg2.goto(link)
     pg2.get_by_role("heading", name="Sabrina’s song for this roast").wait_for()
     ok("Shared Daily shows the song section under the roast", True)
-    pg2.get_by_role("button", name="Listen to a preview").click()
-    src = pg2.locator("iframe[title^='Spotify player']").get_attribute("src")
-    ok("Shared Daily: Spotify player loads only on tap", src.startswith("https://open.spotify.com/embed/track/"))
+    if pg2.get_by_role("button", name="Listen to a preview").count():
+        ok("Shared Daily: no Spotify player before the tap", pg2.locator("iframe").count() == 0)
+        pg2.get_by_role("button", name="Listen to a preview").click()
+        src = pg2.locator("iframe[title^='Spotify player']").get_attribute("src")
+        ok("Shared Daily: Spotify player loads only on tap", src.startswith("https://open.spotify.com/embed/track/"))
+    else:
+        # Songs without a Spotify ID yet: a search link instead, no player.
+        href = pg2.get_by_role("link", name=re.compile("Find it on Spotify")).get_attribute("href")
+        ok("Shared Daily: song without a link offers a Spotify search", href.startswith("https://open.spotify.com/search/") and pg2.locator("iframe").count() == 0, href)
 
     # ---------- Long titles with real fonts ----------
     stress = {
