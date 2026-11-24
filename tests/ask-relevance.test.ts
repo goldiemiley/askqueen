@@ -4,9 +4,9 @@
  * then only ever answer from that intent's own answers.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { allAskResponses, confusedAnswers, intentAnswers, topicResponses, triviaAnswers } from "@/data/ask-responses";
+import { allAskResponses, confusedAnswers, generalAnswers, intentAnswers, topicResponses, triviaAnswers } from "@/data/ask-responses";
 import { classifyQuestion } from "@/features/ask/classify";
-import { askSabrina, candidateTiers, renderAnswer, resetAskSession, type AskReading } from "@/features/ask/engine";
+import { askSabrina, candidateTiers, readAsLabel, renderAnswer, resetAskSession, type AskReading } from "@/features/ask/engine";
 import { PLACES } from "@/features/ask/places";
 import { askShareParams, parseShare } from "@/features/share/links";
 import { checkShareableQuestion } from "@/features/share/question";
@@ -135,7 +135,7 @@ const FIXTURE: Array<[string, Expect, string?]> = [
   ["Will my friends and I make up?", "friendship"],
   ["Is my bestie mad at me?", "friendship"],
   // Ambition
-  ["Will I be rich?", "ambition"],
+  ["Will I be rich?", "money"],
   ["Will I go viral?", "ambition"],
   ["Should I chase my dream?", "ambition"],
   ["Will I become a singer?", "ambition"],
@@ -201,6 +201,8 @@ describe("classifier: 120+ questions read the way a person would", () => {
   });
 });
 
+const generalIds = new Set(generalAnswers.map((r) => r.id));
+
 describe("answers come only from the matched intent", () => {
   const answered = FIXTURE.filter(([, e]) => (ASK_INTENTS as readonly string[]).includes(e));
   it.each(answered)("%s", (q, expected) => {
@@ -209,12 +211,16 @@ describe("answers come only from the matched intent", () => {
       const r = askSabrina(q, { rng: () => (i * 0.137) % 1 });
       expect(r.kind).toBe("answer");
       if (r.kind !== "answer") return;
-      expect(r.response.intent).toBe(expected);
+      // Either an answer written for this intent, or a general magic-ball line.
+      expect(r.intent).toBe(expected);
+      if (r.response.intent !== undefined) expect(r.response.intent).toBe(expected);
+      else expect(generalIds.has(r.response.id)).toBe(true);
       expect(r.response.retired).toBeUndefined();
       expect(r.text).not.toContain("{place}");
       seen.add(r.response.id);
     }
     expect(seen.size).toBeGreaterThanOrEqual(4);
+    expect([...seen].some((id) => !generalIds.has(id)), "some answers are about the topic").toBe(true);
   });
 });
 
@@ -228,7 +234,8 @@ describe("the Portugal failure", () => {
       const r = askSabrina("Will I move to Portugal?", { rng: () => ((i * 7919) % 1000) / 1000 });
       if (r.kind !== "answer") throw new Error("expected an answer");
       expect(forbidden.has(r.response.id)).toBe(false);
-      expect(r.response.intent).toBe("relocation");
+      expect(r.intent).toBe("relocation");
+      expect(r.response.intent === "relocation" || generalIds.has(r.response.id)).toBe(true);
       expect(r.text).not.toMatch(offTopicWords);
     }
   });
@@ -285,11 +292,40 @@ describe("variety without storage", () => {
   });
 });
 
-describe("unknown questions get honesty, not a made-up answer", () => {
-  it.each(["What's the capital of France?", "Will it rain tomorrow?", "Is the blue one better?"])("%s", (q) => {
+describe("questions Sabrina can't place", () => {
+  it.each(["What's the capital of France?", "Who wrote Hamlet?"])("quiz questions get honesty: %s", (q) => {
     const r = askSabrina(q);
     expect(r.kind).toBe("confused");
     expect(r.kind !== "crisis" && r.response.stance).toBe("try_again");
+  });
+  it.each(["Will it rain tomorrow?", "Is the blue one better?", "Да ли ће данас бити добро?"])("everyday questions get a general magic-ball answer: %s", (q) => {
+    const r = askSabrina(q);
+    expect(r.kind).toBe("answer");
+    expect(r.kind === "answer" && generalIds.has(r.response.id)).toBe(true);
+    expect(r.kind === "answer" && readAsLabel(r.response, r.place, r.category, r.intent)).toBe("General vibes");
+  });
+  it("never mixes general answers into reassurance or kids questions", () => {
+    for (const q of ["Am I enough?", "Am I ugly?", "Will I have kids?"]) {
+      for (let i = 0; i < 60; i++) {
+        const r = askSabrina(q, { rng: () => (i * 0.071) % 1 });
+        expect(r.kind === "answer" && generalIds.has(r.response.id), q).toBe(false);
+      }
+    }
+  });
+  it("mixes in general answers for variety, about a third of the time", () => {
+    let general = 0;
+    for (let i = 0; i < 300; i++) {
+      const r = askSabrina("Will I pass my exam?", { rng: () => ((i * 7919) % 1000) / 1000 });
+      if (r.kind === "answer" && generalIds.has(r.response.id)) general++;
+    }
+    expect(general).toBeGreaterThan(60);
+    expect(general).toBeLessThan(150);
+  });
+  it("general answers fit how the question was asked", () => {
+    for (let i = 0; i < 80; i++) {
+      const r = askSabrina("Should I do it?", { rng: () => (i * 0.113) % 1 });
+      if (r.kind === "answer" && r.response.forms) expect(r.response.forms).toContain("should");
+    }
   });
   it("uses the founder's line among the confused replies", () => {
     expect(confusedAnswers.map((r) => r.text)).toContain("Babe, my crystal ball is confused. Give me a little more detail.");

@@ -5,11 +5,13 @@
  * Answers come from the pool for the question's specific intent, filtered to
  * fit how it was asked ("Will I…?" gets predictions, "Should I…?" gets advice).
  * When a destination was recognised, answers that name it come first.
- * Within one visit, answers rotate without repeats until an intent's pool is
- * used up. That memory lives in this module only and is gone on reload, so
+ * About a third of answers come from a shared pool of classic magic-ball
+ * lines instead, for variety; everyday questions Sabrina can't place get one
+ * of those too, rather than a request to rephrase.
+ * Within one visit, answers rotate without repeats until a pool is used up. That memory lives in this module only and is gone on reload, so
  * there is no promise of variety across visits.
  */
-import { confusedAnswers, intentAnswers, seriousResponses, triviaAnswers, unclearResponses } from "@/data/ask-responses";
+import { confusedAnswers, generalAnswers, intentAnswers, seriousResponses, triviaAnswers, unclearResponses } from "@/data/ask-responses";
 import type { AskCategory, AskIntent, AskResponse, AskStance, AskTag, QuestionForm } from "@/types/content";
 import { classifyQuestion, type Classification, type SeriousTopic } from "./classify";
 import type { Place } from "./places";
@@ -96,6 +98,23 @@ export function candidateTiers(intent: AskIntent, form: QuestionForm | null, pla
   return tiers.filter((t) => t.length > 0);
 }
 
+/** Share of topic answers drawn from the general magic-ball pool. */
+export const GENERAL_SHARE = 0.35;
+
+/**
+ * Whether a general answer may stand in for a topic answer. Not for
+ * reassurance questions (a random "No" to "Am I enough?" would be cruel) or
+ * kids questions, which must stay non-predictive.
+ */
+export function allowsGeneral(intent: AskIntent, tags: AskTag[] = []): boolean {
+  return intent !== "self_doubt" && intent !== "self_worth" && !tags.includes("kids");
+}
+
+/** General answers that fit how the question was asked. */
+export function generalPool(form: QuestionForm | null): AskResponse[] {
+  return generalAnswers.filter((r) => !form || !r.forms || r.forms.includes(form));
+}
+
 export function readingFor(c: Classification, rng: Rng, previousId?: string): AskReading {
   const base = { category: null, intent: null, place: null, topic: null };
   switch (c.kind) {
@@ -110,11 +129,19 @@ export function readingFor(c: Classification, rng: Rng, previousId?: string): As
       return { ...base, kind: "unclear", response, text: response.text };
     }
     case "confused": {
+      if (c.reason === "low_confidence") {
+        // An everyday question Sabrina can't place: a classic magic-ball answer.
+        const response = rotate("general", [generalPool(c.form ?? null)], rng, previousId);
+        return { ...base, kind: "answer", response, text: response.text, category: "other" };
+      }
       const response = rotate(`confused:${c.reason}`, [c.reason === "trivia" ? triviaAnswers : confusedAnswers], rng, previousId);
       return { ...base, kind: "confused", response, text: response.text };
     }
     case "intent": {
-      const response = rotate(`intent:${c.intent}`, candidateTiers(c.intent, c.form, c.place, c.tags), rng, previousId);
+      const general = allowsGeneral(c.intent, c.tags) && rng() < GENERAL_SHARE;
+      const response = general
+        ? rotate("general", [generalPool(c.form)], rng, previousId)
+        : rotate(`intent:${c.intent}`, candidateTiers(c.intent, c.form, c.place, c.tags), rng, previousId);
       // The label always shows the place Sabrina recognised; the text only names it when written to.
       return { kind: "answer", response, text: renderAnswer(response, c.place), category: c.topic, intent: c.intent, place: c.place, topic: null };
     }
@@ -178,7 +205,13 @@ export const intentLabels: Record<AskIntent, string> = {
 };
 
 /** "Moving abroad: Portugal", "Exams and studying", or the old broad label. */
-export function readAsLabel(r: Pick<AskResponse, "intent" | "category">, place: Pick<Place, "name"> | null, category?: AskCategory | null): string {
-  if (r.intent) return place ? `${intentLabels[r.intent]}: ${place.name}` : intentLabels[r.intent];
+export function readAsLabel(
+  r: Pick<AskResponse, "intent" | "category">,
+  place: Pick<Place, "name"> | null,
+  category?: AskCategory | null,
+  intent?: AskIntent | null,
+): string {
+  const matched = intent ?? r.intent;
+  if (matched) return place ? `${intentLabels[matched]}: ${place.name}` : intentLabels[matched];
   return categoryLabels[category ?? r.category];
 }

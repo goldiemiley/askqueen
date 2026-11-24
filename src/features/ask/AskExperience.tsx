@@ -249,7 +249,7 @@ export function AskExperience() {
                 />
                 {reading.kind === "answer" && (
                   <p className="relative inline-block rounded-full bg-blush-soft px-3 py-1 text-sm text-plum">
-                    Read as: {readAsLabel(reading.response, reading.place, reading.category)}
+                    Read as: {readAsLabel(reading.response, reading.place, reading.category, reading.intent)}
                   </p>
                 )}
                 {reading.kind === "serious" && (

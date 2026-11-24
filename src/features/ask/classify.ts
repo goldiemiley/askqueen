@@ -25,7 +25,7 @@ export type Classification =
   | { kind: "crisis" }
   | { kind: "serious"; topic: SeriousTopic }
   | { kind: "unclear" }
-  | { kind: "confused"; reason: "low_confidence" | "trivia" }
+  | { kind: "confused"; reason: "low_confidence" | "trivia"; form?: QuestionForm | null }
   | {
       kind: "intent";
       intent: AskIntent;
@@ -151,7 +151,7 @@ const CUES: Record<AskIntent, Cue[]> = {
   ],
   money: [
     [/\b(?:lend|lending|borrow|borrowing|pay (?:him|her|them|it) back|split the bill|owe|owes|afford)\b/, 7],
-    [/\b(?:money|save money|saving money|saving up|spend|spending|budget|budgeting|afford|salary|pay rise|lend|borrow|owe|owes|bills|paycheck|payday|expensive|broke|cheap|split the bill|refund)\b/, 5],
+    [/\b(?:money|save money|saving money|saving up|spend|spending|budget|budgeting|afford|salary|pay rise|lend|borrow|owe|owes|bills|paycheck|payday|expensive|broke|cheap|split the bill|refund|rich|millionaire|billionaire|wealthy|win the lottery|lottery)\b/, 5],
   ],
   career: [
     [/\b(?:job|jobs|career|careers|boss|promotion|promoted|raise|quit|resign|resignation|fired|hired|job offer|offer|employer|company|office|coworker|coworkers|colleague|colleagues|manager|business|startup|side hustle|freelance|freelancing|clients?|internship|cv|resume|linkedin|work(?!\s+out))\b/, 5],
@@ -188,7 +188,7 @@ const CUES: Record<AskIntent, Cue[]> = {
     [/\b(?:roommate|flatmate)\b/, 2],
   ],
   ambition: [
-    [/\b(?:famous|fame|successful|success|rich|millionaire|billionaire|viral|go viral|influencer|followers|my dream|dreams|make it|achieve|celebrity|a star|book deal|record deal|singer|actor|actress|artist|athlete|my goals?|make it big|hit it big)\b/, 5],
+    [/\b(?:famous|fame|successful|success|viral|go viral|influencer|followers|my dream|dreams|make it|achieve|celebrity|a star|book deal|record deal|singer|actor|actress|artist|athlete|my goals?|make it big|hit it big)\b/, 5],
     [/\bbecome (?:a|an)\b/, 3],
   ],
   // Worry about yourself: Sabrina reassures with a kind "No."
@@ -305,7 +305,7 @@ export function classifyQuestion(question: string): Classification {
   const scores = scoreIntents(marked);
   let best: AskIntent | null = null;
   for (const intent of PRIORITY) if (scores[intent] > (best ? scores[best] : 0)) best = intent;
-  if (!best || scores[best] < MIN_SCORE) return { kind: "confused", reason: "low_confidence" };
+  if (!best || scores[best] < MIN_SCORE) return { kind: "confused", reason: "low_confidence", form: questionForm(text) };
 
   return { kind: "intent", intent: best, topic: INTENT_TOPIC[best], form: questionForm(text), place: found?.place ?? null, tags: questionTags(text), score: scores[best] };
 }

@@ -13,9 +13,9 @@
  */
 import type { AskCategory, AskResponse } from "@/types/content";
 import type { SeriousTopic } from "@/features/ask/classify";
-import { confusedAnswers, intentAnswers, triviaAnswers } from "./ask-answers";
+import { confusedAnswers, generalAnswers, intentAnswers, triviaAnswers } from "./ask-answers";
 
-export { confusedAnswers, intentAnswers, triviaAnswers };
+export { confusedAnswers, generalAnswers, intentAnswers, triviaAnswers };
 
 const legacyTopicResponses: Record<AskCategory, AskResponse[]> = {
   romance: [
@@ -120,6 +120,7 @@ export const seriousResponses: Record<SeriousTopic, AskResponse[]> = {
 
 export const allAskResponses: AskResponse[] = [
   ...Object.values(intentAnswers).flat(),
+  ...generalAnswers,
   ...confusedAnswers,
   ...triviaAnswers,
   ...Object.values(topicResponses).flat(),

@@ -33,7 +33,7 @@ with sync_playwright() as p:
 
     t = ask(pg, "Will I move to Portugal?")
     ok("Portugal is read as moving abroad", "Read as: Moving abroad: Portugal" in t, t.split("\n")[0])
-    ok("Portugal answer names Portugal", "Portugal" in t.split("\n", 2)[-1])
+    named = "Portugal" in t.split("\n", 2)[-1]
     ok("Portugal answer has nothing about outfits or nights out", not re.search(r"outfit|night|party|basket|blanket", t, re.I))
     pg.screenshot(path=f"{OUT}/ask-portugal-375.png")
     texts = set()
@@ -44,10 +44,12 @@ with sync_playwright() as p:
         ok_rel = "Moving abroad: Portugal" in r and not re.search(r"outfit|night out|party|basket", r, re.I)
         lines = [x for x in r.split("\n") if x.strip()]
         texts.add(lines[2] if len(lines) > 2 else r)
+        named = named or "Portugal" in "\n".join(lines[2:])
         if not ok_rel:
             ok("Every re-roll stays on moving abroad", False, r[:120]); break
     else:
         ok("Every re-roll stays on moving abroad", True)
+    ok("Some answers name Portugal, others are general magic-ball lines", named)
     ok("Re-rolls give different answers", len(texts) >= 5, f"{len(texts)} different")
 
     pg.get_by_role("button", name="Share my reading").click()
@@ -68,7 +70,8 @@ with sync_playwright() as p:
     ok("Quiz questions get 'Try again', not a made-up answer", "Try again." in t)
     ok("…with a rephrase button and no share button", pg.get_by_role("button", name="Rephrase my question").count() == 1 and pg.get_by_role("button", name="Share my reading").count() == 0)
     t = ask(pg, "Will it rain tomorrow?")
-    ok("Low-confidence questions ask for more detail", "Try again." in t)
+    ok("Everyday questions it can't place get a general magic-ball answer", "Try again." not in t and "General vibes" in t)
+    ok("…and that answer can be shared", pg.get_by_role("button", name="Share my reading").count() == 1)
     t = ask(pg, "Will I get a visa for Portugal?")
     ok("Visa questions are 'Not my department'", "Not my department." in t and "official" in t.lower())
     t = ask(pg, "Should I get a tattoo?")

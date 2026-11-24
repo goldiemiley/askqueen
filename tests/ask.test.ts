@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allAskResponses, intentAnswers, seriousResponses, topicResponses, unclearResponses } from "@/data/ask-responses";
+import { allAskResponses, generalAnswers, intentAnswers, seriousResponses, topicResponses, unclearResponses } from "@/data/ask-responses";
 import { classifyQuestion } from "@/features/ask/classify";
 import { askSabrina, pick } from "@/features/ask/engine";
 import { QUESTION_MAX, validateQuestion } from "@/features/ask/question";
@@ -49,8 +49,8 @@ describe("classifyQuestion: intents", () => {
     const c = classifyQuestion(question);
     expect(c.kind === "intent" && c.intent).toBe(intent);
   });
-  it("asks for more detail instead of guessing at a language it can't read", () => {
-    expect(classifyQuestion("Да ли ће данас бити добро?")).toEqual({ kind: "confused", reason: "low_confidence" });
+  it("treats a language it can't read as low confidence rather than guessing a topic", () => {
+    expect(classifyQuestion("Да ли ће данас бити добро?")).toMatchObject({ kind: "confused", reason: "low_confidence" });
   });
 });
 
@@ -104,7 +104,7 @@ describe("askSabrina", () => {
     if (reading.kind !== "answer") return;
     expect(reading.category).toBe("romance");
     expect(reading.intent).toBe("texting");
-    expect(intentAnswers.texting).toContainEqual(reading.response);
+    expect([...intentAnswers.texting, ...generalAnswers]).toContainEqual(reading.response);
   });
 
   it("never repeats the previous answer when asked again", () => {

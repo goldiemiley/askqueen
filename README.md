@@ -73,9 +73,11 @@ Everything runs in the browser; questions are never stored or sent (`src/feature
 3. **Fit the question:** "Will I…" gets predictions and "Should I…" gets advice. 234 known destinations
    (`places.ts`) are echoed back ("The signs point to Portugal"). Subject tags keep tattoo answers off hair
    questions, and kids questions only get non-predictive answers.
-4. **Not sure? Say so:** low-confidence and quiz questions ("What's the capital of France?") get a "give me a
-   little more detail" reply instead of a made-up answer.
-5. **Variety:** answers rotate without repeats within a visit until an intent's pool is used up. This lives in
+4. **Classic magic-ball answers:** 47 general lines ("Signs point to yes, babe.", "Reply hazy. Ask again
+   after a snack.") are mixed in about a third of the time for variety, and answer everyday questions
+   Sabrina can't place. They never mention a topic, so they can't land on the wrong subject. They're never
+   used for "Am I enough?"-type or kids questions. Only quiz questions and keyboard mashes ask to rephrase.
+5. **Variety:** answers rotate without repeats within a visit until a pool is used up. This lives in
    memory only, so variety across visits isn't promised.
 
 Share links carry the answer ID and, for destination answers, a key from AskQueen's own place list (never
