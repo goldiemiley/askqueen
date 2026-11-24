@@ -148,6 +148,36 @@ on; shared links keep their original song.
 has no login or tokens because nothing about it is published. Editing songs from the public website would need
 a real backend with sign-in, which isn't built.
 
+### Finding missing Spotify links
+
+The editor's **Find Spotify links** button looks up songs that have no Spotify link, using Spotify's
+official Web API. It only runs on your computer; the website never talks to Spotify's API.
+
+**One-time setup** (Spotify requires the app owner to have Premium for Development Mode apps):
+
+1. At [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), create an app. Any name;
+   redirect URI `http://127.0.0.1:4321/callback` (required by the form, never used); tick **Web API**.
+2. Copy `.env.example` to `.env.local` and paste the app's Client ID and Client secret into it.
+   `.env.local` is git-ignored: it is never committed or published.
+
+**Try it on 20 songs first, without saving:** `npm run spotify:test`. This prints each result and writes
+`spotify-match-report.md` (git-ignored). Then use the editor (or `npm run spotify:test -- --all --write`).
+
+How it decides:
+- It searches by title and artist, at most 10 results per search (Spotify's limit), plus a looser search if
+  needed.
+- It throws out live, remix, karaoke, cover/tribute, instrumental, acoustic, demo and sped-up versions,
+  unless your title asks for one.
+- **Added automatically** only at 90%+ confidence: exact title, exact main artist, an album or single (not
+  a compilation), and Spotify confirms the ID when asked again.
+- **Review:** anything less certain, with a confidence score, the reasons and an *Open in Spotify* link.
+  Accept, pick another candidate, or skip.
+- **Not found:** a Spotify search link and a box to paste the link yourself.
+- Requests go one at a time, spaced out. If Spotify says slow down, it waits; if the quota is used up, it
+  stops and keeps what it found.
+- Only the Spotify link is added. Song IDs, the other fields, order, retired songs and share links don't
+  change.
+
 ## Run it locally
 
 Requires Node.js 20.9 or newer (tested on Node 22).

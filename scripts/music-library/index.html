@@ -130,6 +130,15 @@
   .review-wrap { max-height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
   .rowmsg { font-size: 12px; font-weight: 600; margin-top: 3px; }
   .rowmsg.err { color: var(--burgundy); } .rowmsg.ok { color: #3c6b3f; } .rowmsg.warn { color: #8a6116; }
+  .sp-progress { display: grid; gap: 6px; margin: 4px 0 14px; }
+  .sp-progress progress { width: 100%; height: 10px; accent-color: var(--burgundy); }
+  .sp-counts { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 14px; color: var(--muted); }
+  .sp-counts b { color: var(--plum); font-family: var(--display); font-weight: 400; font-size: 20px; margin-right: 3px; }
+  .conf { display: inline-block; min-width: 44px; text-align: center; border-radius: 999px; padding: 1px 8px; font-weight: 700; font-size: 12px; background: var(--blush-soft); color: var(--plum); }
+  .conf.hi { background: #dcebd9; color: #2f5a32; } .conf.lo { background: #f7d7de; color: var(--burgundy); }
+  .sp-section { margin-top: 16px; } .sp-section h3 { font-size: 17px; margin: 0 0 6px; }
+  .sp-setup ol { margin: 6px 0 0; padding-left: 20px; } .sp-setup code { background: #fff; padding: 1px 5px; border-radius: 5px; }
+  table.review a { color: var(--burgundy); font-weight: 600; }
   #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--plum); color: var(--cream); padding: 10px 18px; border-radius: 999px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
   #toast.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
@@ -160,7 +169,7 @@
   <section class="panel" aria-labelledby="catalogueH">
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
       <h2 id="catalogueH">Catalogue</h2>
-      <div class="row"><button class="btn ghost" id="bulkBtn" type="button">Bulk add</button><button class="btn primary" id="addBtn" type="button">Add song</button></div>
+      <div class="row"><button class="btn ghost" id="spBtn" type="button">Find Spotify links</button><button class="btn ghost" id="bulkBtn" type="button">Bulk add</button><button class="btn primary" id="addBtn" type="button">Add song</button></div>
     </div>
     <div class="toolbar" role="search">
       <div class="field search"><label for="q">Search title or artist</label><input id="q" type="search" autocomplete="off" /></div>
@@ -255,6 +264,41 @@
     <datalist id="genreList"></datalist><datalist id="themeList"></datalist>
     <div class="dlg-foot"><span class="hint">Genres and themes: type names separated by “/”, e.g. Pop / R&amp;B.</span>
       <div class="r"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="bulkApply" disabled>Add songs</button></div></div>
+  </div>
+</dialog>
+
+<dialog id="spDlg" class="wide" aria-labelledby="spDlgH">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="spDlgH">Find missing Spotify links</h2><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div id="spSetup" class="callout sp-setup" hidden></div>
+    <div id="spMain" hidden>
+      <p class="hint" id="spIntro"></p>
+      <div class="row" style="flex-wrap:wrap;margin:8px 0 12px">
+        <button class="btn ghost" type="button" id="spTest">Test on 20 songs</button>
+        <button class="btn primary" type="button" id="spAll">Find all</button>
+        <button class="btn danger" type="button" id="spStop" hidden>Stop</button>
+      </div>
+      <p id="spMsg" class="msg" role="alert"></p>
+      <div class="sp-progress" id="spProgress" hidden>
+        <progress id="spBar" max="1" value="0"></progress>
+        <div class="sp-counts" role="status" aria-live="polite" id="spCounts"></div>
+      </div>
+      <div class="sp-section" id="spReviewBox" hidden>
+        <h3>Check these matches</h3>
+        <p class="hint">Not sure enough to add on their own. Listen, then accept the right one or skip.</p>
+        <div class="review-wrap"><table class="review"><thead><tr><th>Your song</th><th>Spotify match</th><th>Confidence</th><th>Listen</th><th></th></tr></thead><tbody id="spReviewRows"></tbody></table></div>
+      </div>
+      <div class="sp-section" id="spNoneBox" hidden>
+        <h3>Not found</h3>
+        <p class="hint">Search Spotify yourself and paste the song's link, or leave it without one.</p>
+        <div class="review-wrap"><table class="review"><thead><tr><th>Your song</th><th>Search</th><th>Paste a Spotify link</th></tr></thead><tbody id="spNoneRows"></tbody></table></div>
+      </div>
+      <details class="sp-section" id="spAutoBox" hidden><summary id="spAutoSum"></summary>
+        <div class="review-wrap" style="margin-top:8px"><table class="review"><thead><tr><th>Your song</th><th>Spotify track</th><th>Confidence</th><th>Listen</th></tr></thead><tbody id="spAutoRows"></tbody></table></div>
+      </details>
+      <div class="sp-section" id="spErrBox" hidden><h3>Errors</h3><ul id="spErrList" class="hint"></ul></div>
+    </div>
+    <div class="dlg-foot"><div class="r"><button class="btn ghost" type="button" data-close>Close</button></div></div>
   </div>
 </dialog>
 
@@ -815,6 +859,127 @@ $("#bulkRows").addEventListener("input", (e) => {
   bulkRender(false);
 });
 $("#bulkApply").onclick = applyBulk;
+
+// ---------- Find missing Spotify links ----------
+// The server does the Spotify lookups with the key from .env.local; this page only sees results.
+const sp = { running: false, stop: false, results: [], configured: false };
+const missingSongs = () => state.songs.filter((s) => !s.retired && !s.spotifyTrackId);
+const confPill = (c) => `<span class="conf ${c >= 90 ? "hi" : c < 70 ? "lo" : ""}">${c}%</span>`;
+const listen = (url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open in Spotify</a>`;
+const usedBy = (trackId, songId) => state.songs.find((s) => s.spotifyTrackId === trackId && s.id !== songId);
+async function openSpotifyFinder() {
+  $("#spDlg").showModal();
+  const { data } = await api("GET", "/api/spotify/status");
+  sp.configured = Boolean(data.configured);
+  $("#spSetup").hidden = sp.configured; $("#spMain").hidden = !sp.configured;
+  if (!sp.configured) {
+    $("#spSetup").innerHTML = `Spotify isn't set up on this computer yet. One-time setup:<ol>
+      <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">developer.spotify.com/dashboard</a>, log in and create an app (any name; redirect URI <code>http://127.0.0.1:4321/callback</code>; tick Web API). Spotify requires the app owner to have Premium.</li>
+      <li>In the AskQueen folder, copy <code>.env.example</code> to <code>.env.local</code> and paste the app's Client ID and Client secret into it.</li>
+      <li>Reload this page.</li></ol><p style="margin:8px 0 0">The secret stays in <code>.env.local</code> on your computer. It's never committed or published.</p>`;
+    return;
+  }
+  spRenderIntro(); spRender();
+}
+function spRenderIntro() {
+  const n = missingSongs().length;
+  $("#spIntro").textContent = n ? `${n} active song${n === 1 ? " has" : "s have"} no Spotify link. Matches that are almost certainly right (90%+, title and main artist exact, not a cover, live or remix version, ID confirmed with Spotify) are added automatically and saved. Everything else waits for you below.` : "Every active song has a Spotify link.";
+  $("#spAll").textContent = `Find all ${n}`;
+  $("#spTest").disabled = $("#spAll").disabled = !n || sp.running;
+  $("#spTest").textContent = `Test on ${Math.min(20, n)} songs`;
+}
+function spCounts() {
+  const c = (d) => sp.results.filter((r) => r.state === d).length;
+  return { auto: c("auto"), review: c("review"), none: c("none"), error: c("error"), accepted: c("accepted"), skipped: c("skipped") };
+}
+function spRender() {
+  const n = spCounts(), done = sp.results.length;
+  $("#spProgress").hidden = !sp.total;
+  $("#spBar").max = sp.total || 1; $("#spBar").value = done;
+  $("#spCounts").innerHTML = `<span><b>${done}</b>of ${sp.total || 0} checked</span><span><b>${n.auto + n.accepted}</b>matched</span><span><b>${n.review}</b>to review</span><span><b>${n.none}</b>not found</span><span><b>${n.error}</b>errors</span>`;
+  const review = sp.results.filter((r) => r.state === "review");
+  $("#spReviewBox").hidden = !review.length;
+  $("#spReviewRows").innerHTML = review.map((r) => {
+    const c = r.candidates[r.pick || 0];
+    const opts = r.candidates.length > 1 ? `<select data-sp="pick" aria-label="Other matches for ${esc(r.title)}">${r.candidates.map((x, i) => `<option value="${i}" ${i === (r.pick || 0) ? "selected" : ""}>${esc(x.name)} – ${esc(x.artists)} (${esc(x.album)}${x.year ? ", " + esc(x.year) : ""}) · ${x.confidence}%</option>`).join("")}</select>` : `${esc(c.name)} – ${esc(c.artists)}<div class="hint">${esc(c.album)}${c.year ? ", " + esc(c.year) : ""}</div>`;
+    return `<tr data-id="${esc(r.id)}"><td><b>${esc(r.title)}</b><div class="hint">${esc(r.artist)}</div></td><td>${opts}<div class="rowmsg warn">${esc(c.notes.join(" · "))}</div>${r.msg ? `<div class="rowmsg err">${esc(r.msg)}</div>` : ""}</td><td>${confPill(c.confidence)}</td><td>${listen(c.url)}</td><td style="white-space:nowrap"><button class="btn primary small" type="button" data-sp="accept">Accept</button> <button class="btn ghost small" type="button" data-sp="skip">Skip</button></td></tr>`;
+  }).join("");
+  const none = sp.results.filter((r) => r.state === "none");
+  $("#spNoneBox").hidden = !none.length;
+  $("#spNoneRows").innerHTML = none.map((r) => `<tr data-id="${esc(r.id)}"><td><b>${esc(r.title)}</b><div class="hint">${esc(r.artist)}</div>${r.rejected?.length ? `<div class="rowmsg warn">Skipped: ${esc(r.rejected.slice(0, 2).map((x) => `${x.name} (${x.rejected})`).join("; "))}</div>` : ""}</td><td>${listen(r.searchUrl).replace("Open in Spotify", "Search Spotify")}</td><td><div class="row"><input type="text" data-sp="paste" placeholder="https://open.spotify.com/track/…" aria-label="Spotify link for ${esc(r.title)}" /><button class="btn ghost small" type="button" data-sp="usepaste">Add</button></div>${r.msg ? `<div class="rowmsg err">${esc(r.msg)}</div>` : ""}</td></tr>`).join("");
+  const auto = sp.results.filter((r) => r.state === "auto" || r.state === "accepted");
+  $("#spAutoBox").hidden = !auto.length;
+  $("#spAutoSum").textContent = `Added: ${auto.length} song${auto.length === 1 ? "" : "s"}`;
+  $("#spAutoRows").innerHTML = auto.map((r) => `<tr><td><b>${esc(r.title)}</b><div class="hint">${esc(r.artist)}</div></td><td>${esc(r.chosen.name)} – ${esc(r.chosen.artists)}<div class="hint">${esc(r.chosen.album)}${r.chosen.year ? ", " + esc(r.chosen.year) : ""}${r.state === "accepted" ? " · accepted by you" : ""}</div></td><td>${confPill(r.chosen.confidence)}</td><td>${listen(r.chosen.url)}</td></tr>`).join("");
+  const errs = sp.results.filter((r) => r.state === "error");
+  $("#spErrBox").hidden = !errs.length;
+  $("#spErrList").innerHTML = errs.map((r) => `<li>${esc(r.title)} – ${esc(r.artist)}: ${esc(r.error)}</li>`).join("");
+}
+function spSetId(songId, trackId) {
+  const i = state.songs.findIndex((s) => s.id === songId);
+  if (i === -1 || state.songs[i].spotifyTrackId) return false;
+  state.songs[i] = { ...state.songs[i], spotifyTrackId: trackId };
+  return true;
+}
+async function spRun(limit) {
+  if (dirty()) { $("#spMsg").className = "msg warn"; $("#spMsg").textContent = "Save or undo your other changes first, so only Spotify links get saved."; return; }
+  const pool = missingSongs();
+  const n = Math.min(limit || pool.length, pool.length);
+  const songs = limit ? Array.from({ length: n }, (_, i) => pool[Math.floor((i * pool.length) / n)]) : pool;
+  Object.assign(sp, { running: true, stop: false, results: [], total: songs.length });
+  $("#spMsg").textContent = ""; $("#spStop").hidden = false; spRenderIntro(); spRender();
+  let fatal = "";
+  for (const song of songs) {
+    if (sp.stop) break;
+    const { status, data } = await api("POST", "/api/spotify/find", { title: song.title, artist: song.artist });
+    const row = { id: song.id, title: song.title, artist: song.artist };
+    if (status !== 200) {
+      sp.results.push({ ...row, state: "error", error: data.error || `Error ${status}` });
+      if (["auth", "quota", "config", "network"].includes(data.kind)) { fatal = data.error; break; }
+    } else if (data.decision === "auto") {
+      const other = usedBy(data.trackId, song.id);
+      if (other) sp.results.push({ ...row, state: "review", candidates: data.candidates, msg: `Same Spotify track as "${other.title}". Check both songs.` });
+      else { spSetId(song.id, data.trackId); sp.results.push({ ...row, state: "auto", chosen: data.best }); }
+    } else if (data.decision === "review") sp.results.push({ ...row, state: "review", candidates: data.candidates });
+    else sp.results.push({ ...row, state: "none", searchUrl: data.searchUrl, rejected: data.rejected });
+    spRender();
+  }
+  sp.running = false; $("#spStop").hidden = true;
+  const n2 = spCounts();
+  if (n2.auto) await save();
+  spRenderIntro(); spRender();
+  $("#spMsg").className = fatal ? "msg err" : "msg ok";
+  $("#spMsg").textContent = fatal ? `Stopped: ${fatal}` : `${sp.stop ? "Stopped. " : "Done. "}${n2.auto} added and saved, ${n2.review} to review, ${n2.none} not found${n2.error ? `, ${n2.error} errors` : ""}.`;
+}
+async function spAccept(r, trackId, chosen) {
+  const other = usedBy(trackId, r.id);
+  if (other) { r.msg = `That track is already linked to "${other.title}".`; return spRender(); }
+  const { data } = await api("GET", `/api/spotify?id=${encodeURIComponent(trackId)}`);
+  if (data.ok === false) { r.msg = data.reason; return spRender(); }
+  if (!spSetId(r.id, trackId)) { r.msg = "This song already has a Spotify link."; return spRender(); }
+  r.state = "accepted"; r.chosen = chosen; r.msg = "";
+  await save(); spRenderIntro(); spRender();
+}
+$("#spBtn").onclick = openSpotifyFinder;
+$("#spTest").onclick = () => spRun(20);
+$("#spAll").onclick = () => spRun(0);
+$("#spStop").onclick = () => { sp.stop = true; $("#spStop").disabled = true; setTimeout(() => ($("#spStop").disabled = false), 1500); };
+$("#spDlg").addEventListener("cancel", (e) => { if (sp.running) e.preventDefault(); });
+$("#spDlg").addEventListener("change", (e) => {
+  if (e.target.dataset.sp !== "pick") return;
+  const r = sp.results.find((x) => x.id === e.target.closest("tr").dataset.id); r.pick = Number(e.target.value); spRender();
+});
+$("#spDlg").addEventListener("click", async (e) => {
+  const act = e.target.dataset?.sp; if (!act || e.target.tagName !== "BUTTON") return;
+  const r = sp.results.find((x) => x.id === e.target.closest("tr").dataset.id); if (!r) return;
+  if (act === "accept") { const c = r.candidates[r.pick || 0]; await spAccept(r, c.id, c); }
+  if (act === "skip") { r.state = "skipped"; spRender(); }
+  if (act === "usepaste") {
+    const v = e.target.closest("tr").querySelector("input").value, p = parseSpotify(v);
+    if (!p.ok) { r.msg = p.reason || "Paste a Spotify track link."; return spRender(); }
+    await spAccept(r, p.id, { name: "Added by hand", artists: "", album: "", year: "", confidence: 100, url: `https://open.spotify.com/track/${p.id}` });
+  }
+});
 load();
 </script>
 </body>

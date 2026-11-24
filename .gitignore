@@ -7,3 +7,5 @@ next-env.d.ts
 .DS_Store
 npm-debug.log*
 e2e-output/
+!.env.example
+spotify-match-report.md

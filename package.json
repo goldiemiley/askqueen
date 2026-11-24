@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build:pages",
-    "library": "tsx scripts/music-library/server.ts"
+    "library": "tsx scripts/music-library/server.ts",
+    "spotify:test": "tsx scripts/music-library/spotify-test.ts"
   },
   "license": "UNLICENSED",
   "dependencies": {

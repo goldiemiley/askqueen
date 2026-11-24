@@ -23,6 +23,7 @@ import {
   type SongRecord,
 } from "../../src/data/catalogue";
 import { ENERGY_LEVELS, MUSIC_GENRES, ROAST_THEMES } from "../../src/types/content";
+import { findMatch, loadSpotifyConfig, SpotifyClient, SpotifyError } from "./spotify";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_CATALOGUE = resolve(here, "../../src/data/songs.json");
@@ -36,7 +37,14 @@ const FONTS: Record<string, string> = {
 };
 const MAX_BODY = 5 * 1024 * 1024;
 
-type Options = { catalogue: string; port: number; fetchImpl?: typeof fetch };
+type Options = {
+  catalogue: string;
+  port: number;
+  fetchImpl?: typeof fetch;
+  /** Spotify Web API client; by default built from .env.local. null = not set up. */
+  spotify?: SpotifyClient | null;
+  repoRoot?: string;
+};
 
 async function readCatalogue(path: string): Promise<SongRecord[]> {
   const file = JSON.parse(await readFile(path, "utf8")) as CatalogueFile;
@@ -82,7 +90,17 @@ function allowed(req: IncomingMessage, port: number): boolean {
   return true;
 }
 
-export function createHandler({ catalogue, port, fetchImpl = fetch }: Options) {
+export function createHandler({ catalogue, port, fetchImpl = fetch, spotify, repoRoot = resolve(here, "../..") }: Options) {
+  // Built on first use so adding .env.local only needs a page reload, not a restart.
+  // The secret stays in this process: no response ever includes it.
+  let client: SpotifyClient | null | undefined = spotify;
+  const spotifyClient = () => {
+    if (client) return client;
+    if (spotify === null) return null;
+    const cfg = loadSpotifyConfig(repoRoot);
+    client = cfg ? new SpotifyClient({ ...cfg, fetchImpl }) : undefined;
+    return client ?? null;
+  };
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       if (!allowed(req, port)) return send(res, 403, { error: "This editor only accepts requests from its own page." });
@@ -124,6 +142,27 @@ export function createHandler({ catalogue, port, fetchImpl = fetch }: Options) {
         await writeFile(tmp, formatCatalogue(body.songs as SongRecord[]), "utf8");
         await rename(tmp, catalogue);
         return send(res, 200, { saved: true, report });
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/spotify/status") {
+        const c = spotifyClient();
+        return send(res, 200, { configured: Boolean(c), market: c?.market ?? null });
+      }
+
+      // Finds one song on Spotify. The page calls this song by song, so it can show progress and stop.
+      if (req.method === "POST" && url.pathname === "/api/spotify/find") {
+        const c = spotifyClient();
+        if (!c) return send(res, 409, { error: "Spotify isn't set up. Add your app's ID and secret to .env.local, then reload.", kind: "config" });
+        const body = (await readBody(req)) as { title?: unknown; artist?: unknown };
+        const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
+        const artist = typeof body.artist === "string" ? body.artist.trim().slice(0, 200) : "";
+        if (!title || !artist) return send(res, 400, { error: "Title and artist are needed." });
+        try {
+          return send(res, 200, await findMatch(c, { title, artist }));
+        } catch (e) {
+          if (e instanceof SpotifyError) return send(res, 502, { error: e.message, kind: e.kind });
+          return send(res, 502, { error: "Something went wrong talking to Spotify.", kind: "spotify" });
+        }
       }
 
       // Asks Spotify's public oEmbed service for the track's title (no key, no sign-in).
