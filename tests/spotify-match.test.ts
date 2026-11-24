@@ -121,6 +121,11 @@ describe("scoring", () => {
       ["Black Amplifier", "The S.I.G.I.T.", "The S.I.G.I.T"],
     ]) expect(scoreTrack({ title, artist }, track(title, spotifyArtist)).confidence, artist).toBe(100);
   });
+  it("matches songs credited to several artists", () => {
+    expect(scoreTrack({ title: "Can't Hold Us", artist: "Macklemore & Ryan Lewis, Ray Dalton" }, track("Can't Hold Us (feat. Ray Dalton)", ["Macklemore & Ryan Lewis", "Ray Dalton"])).confidence).toBe(100);
+    expect(scoreTrack({ title: "Crazy in Love", artist: "Beyoncé, JAY-Z" }, track("Crazy In Love (feat. Jay-Z)", ["Beyoncé", "JAY-Z"])).confidence).toBe(100);
+    expect(scoreTrack({ title: "Crazy in Love", artist: "Beyoncé, JAY-Z" }, track("Crazy In Love", ["JAY-Z", "Beyoncé"])).confidence).toBeLessThan(90);
+  });
   it("two different titles in other scripts don't count as the same", () => {
     expect(scoreTrack({ title: "사랑", artist: "ADOY" }, track("바다", "ADOY")).confidence).toBeLessThan(90);
     expect(scoreTrack({ title: "사랑", artist: "ADOY" }, track("사랑", "ADOY")).confidence).toBe(100);

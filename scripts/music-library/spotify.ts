@@ -160,6 +160,14 @@ export function scoreTrack(song: { title: string; artist: string }, track: Spoti
   if (same(song.artist, artists[0] ?? "") || (wantArtist !== "" && wantArtist === normText(artists.join(" and ")))) {
     artist = 40;
     notes.push("main artist matches");
+  } else if (
+    // "Macklemore & Ryan Lewis, Ray Dalton" = Spotify's ["Macklemore & Ryan Lewis", "Ray Dalton"]
+    song.artist.includes(",") &&
+    normText(song.artist.split(",")[0]) === got0 &&
+    song.artist.split(",").map(normText).every((p) => gotAll.includes(p))
+  ) {
+    artist = 40;
+    notes.push("artists match");
   } else if (parts.length > 1 && parts[0] === got0 && parts.every((p) => gotAll.includes(p))) {
     artist = 40;
     notes.push("artists match");
